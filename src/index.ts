@@ -30,7 +30,7 @@ async function handleSearch(request: Request, _env: Env, ctx: ExecutionContext, 
         .finally(() => writer.close())
     );
 
-    return new Response(readable, {
+    return new Response(readable {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache",
@@ -52,7 +52,6 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // ===================== 首页直接显示网页，不跳转 =====================
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const html = `
 <!DOCTYPE html>
@@ -60,60 +59,68 @@ export default {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SearchGAL</title>
+  <title>SearchGAL - 清爽搜索</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#121212;color:#e0e0e0;min-height:100vh;padding:2rem}
-    .container{max-width:720px;margin:0 auto}
-    h1{font-size:2.2rem;margin-bottom:1.5rem;color:#f9f9f9}
-    .form{display:flex;gap:.75rem; margin-bottom:2rem}
-    input{flex:1;padding:.9rem 1rem;border-radius:8px;border:none;background:#1e1e1e;color:#fff;font-size:1rem}
-    button{padding:.9rem 1.4rem;border-radius:8px;border:none;background:#4f46e5;color:white;font-weight:600;cursor:pointer}
-    button:hover{background:#4338ca}
-    #result{white-space:pre-wrap;background:#1a1a1a;padding:1rem;border-radius:8px;min-height:120px;line-height:1.6}
+    body{font-family:system-ui, sans-serif;background:#121212;color:#e0e0e0;padding:2rem}
+    .box{max-width:800px;margin:0 auto}
+    h1{margin-bottom:1.5rem;color:#fff}
+    .search{display:flex;gap:10px;margin-bottom:1.5rem}
+    input{flex:1;padding:12px 14px;border-radius:8px;border:none;background:#1e1e1e;color:#fff;font-size:16px}
+    button{padding:12px 18px;border-radius:8px;border:none;background:#4f46e5;color:#fff;font-weight:bold}
+    .item{background:#1a1a1a;padding:12px 14px;border-radius:8px;margin-bottom:10px}
+    .title{color:#a5f3fc;font-weight:bold;margin-bottom:4px}
+    .url{color:#9ca3af;font-size:14px}
+    .platform{margin:10px 0 6px 0;color:#bbf7d0;font-weight:bold}
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>SearchGAL - 游戏搜索</h1>
-    <form id="searchForm" class="form">
-      <input type="text" name="game" placeholder="输入游戏名称" required>
+  <div class="box">
+    <h1>SearchGAL 游戏搜索</h1>
+    <form class="search" id="form">
+      <input type="text" name="game" placeholder="输入游戏名" required>
       <button type="submit">搜索</button>
     </form>
     <div id="result"></div>
   </div>
 
   <script>
-    const form = document.getElementById('searchForm');
-    const result = document.getElementById('result');
+    const form = document.getElementById('form');
+    const res = document.getElementById('result');
 
-    form.addEventListener('submit', async (e) => {
+    form.onsubmit = async e => {
       e.preventDefault();
-      const game = form.game.value.trim();
-      if (!game) return;
-      result.textContent = '搜索中...';
+      res.innerHTML = '搜索中...';
 
-      const response = await fetch('/gal', {
+      const resp = await fetch('/gal', {
         method: 'POST',
         body: new FormData(form)
       });
 
-      if (!response.ok) {
-        const err = await response.json();
-        result.textContent = '错误：' + err.error;
-        return;
-      }
-
-      result.textContent = '';
-      const reader = response.body.getReader();
+      res.innerHTML = '';
+      const reader = resp.body.getReader();
       const decoder = new TextDecoder();
 
-      while (true) {
+      while(1){
         const { done, value } = await reader.read();
-        if (done) break;
-        result.textContent += decoder.decode(value);
+        if(done) break;
+        const txt = decoder.decode(value);
+        const lines = txt.split('\\n').filter(i=>i.trim());
+
+        for(const line of lines){
+          try{
+            const json = JSON.parse(line);
+            if(json.result){
+              const p = json.result;
+              res.innerHTML += '<div class="platform">『' + p.name + '』</div>';
+              (p.items||[]).forEach(i=>{
+                res.innerHTML += '<div class="item"><div class="title">'+i.name+'</div><div class="url">'+i.url+'</div></div>';
+              })
+            }
+          }catch(e){}
+        }
       }
-    });
+    }
   </script>
 </body>
 </html>
