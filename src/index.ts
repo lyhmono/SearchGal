@@ -17,71 +17,136 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SearchGAL</title>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-      background:#121212;color:#e0e0e0;min-height:100vh;padding:2rem;
-    }
-    .container{max-width:860px;margin:0 auto}
-    h1{
-      font-size:2rem;margin-bottom:0.25rem;color:#f9f9f9;
-      display:flex;align-items:center;gap:0.5rem;
-    }
-    .form{
-      display:flex;gap:0.75rem;margin:1.5rem 0 1rem;
-    }
-    input{
-      flex:1;padding:0.75rem 1rem;border-radius:8px;border:none;
-      background:#1e1e1e;color:#fff;font-size:1rem;outline:none;
-    }
-    button{
-      padding:0.75rem 1.4rem;border-radius:8px;border:none;
-      background:#4f46e5;color:white;font-weight:600;cursor:pointer;
-    }
-    button:hover{background:#4338ca}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  background: radial-gradient(ellipse at top, #1a1a2e, #0d0d0d);
+  color:#e0e0e0;min-height:100vh;padding:2rem;
+}
+.container{max-width:1100px;margin:0 auto}
+h1{
+  font-size:2.5rem;margin-bottom:0.25rem;
+  background: linear-gradient(90deg, #a78bfa, #60a5fa);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  display:flex;align-items:center;gap:0.5rem;
+}
+.form{
+  display:flex;gap:0.75rem;margin:1.5rem 0 1rem;
+}
+input{
+  flex:1;padding:0.85rem 1.2rem;border-radius:999px;border:none;
+  background:rgba(255,255,255,0.07);color:#fff;font-size:1rem;outline:none;
+  backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);
+  transition:all 0.2s;
+}
+input:focus{
+  border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,0.25);
+}
+button{
+  padding:0.85rem 1.8rem;border-radius:999px;border:none;
+  background:linear-gradient(135deg, #6366f1, #8b5cf6);
+  color:white;font-weight:600;cursor:pointer;
+  transition:all 0.2s;
+}
+button:hover{
+  background:linear-gradient(135deg, #4f46e5, #7c3aed);
+  transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,0.4);
+}
+button:active{transform:scale(0.97)}
 
-    .progress-wrap{
-      display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;
-    }
-    progress{
-      flex:1;height:8px;border-radius:4px;appearance:none;
-    }
-    progress::-webkit-progress-bar{background:#2a2a2a;border-radius:4px}
-    progress::-webkit-progress-value{background:#4f46e5;border-radius:4px}
-    #progressText{min-width:70px;font-size:0.9rem;color:#aaa}
+.progress-wrap{
+  display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;
+}
+progress{
+  flex:1;height:6px;border-radius:3px;appearance:none;
+  overflow:hidden;
+}
+progress::-webkit-progress-bar{
+  background:rgba(255,255,255,0.05);border-radius:3px;
+}
+progress::-webkit-progress-value{
+  background:linear-gradient(90deg, #6366f1, #a78bfa);
+  border-radius:3px;box-shadow:0 0 8px #818cf8;
+  animation:progressGlow 1.5s infinite alternate;
+}
+@keyframes progressGlow{
+  from{box-shadow:0 0 6px #818cf8}
+  to{box-shadow:0 0 14px #a78bfa}
+}
+#progressText{min-width:70px;font-size:0.9rem;color:#aaa}
 
-    #results{
-      display:flex;flex-direction:column;gap:1rem;
-    }
-    .platform-card{
-      background:#1a1a1a;border-radius:10px;overflow:hidden;
-      border:1px solid #2a2a2a;
-    }
-    .platform-header{
-      display:flex;align-items:center;gap:0.5rem;padding:0.75rem 1rem;
-      background:#232323;font-size:0.95rem;
-    }
-    .platform-dot{
-      display:inline-block;width:10px;height:10px;border-radius:50%;
-    }
-    .tags{
-      margin-left:auto;font-size:0.8rem;color:#888;
-      background:#2a2a2a;padding:0.2rem 0.5rem;border-radius:4px;
-    }
-    .platform-content{padding:0.5rem 1rem 0.75rem}
-    .platform-content p{color:#aaa;font-style:italic;margin:0.5rem 0}
-    .platform-content .error{color:#f87171}
-    ul.item-list{list-style:none}
-    ul.item-list li{
-      padding:0.35rem 0;border-bottom:1px solid #222;
-      display:flex;align-items:center;gap:0.4rem;
-    }
-    ul.item-list li:last-child{border-bottom:none}
-    ul.item-list a{
-      color:#93c5fd;text-decoration:none;font-size:0.95rem;
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    }
-    ul.item-list a:hover{text-decoration:underline;color:#a5b4fc}
+#results{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));
+  gap:1rem;
+}
+.platform-card{
+  background:rgba(255,255,255,0.03);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;overflow:hidden;
+  animation:fadeInUp 0.35s ease-out both;
+  transition:all 0.2s;
+}
+.platform-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 12px 28px rgba(0,0,0,0.6);
+  border-color:rgba(255,255,255,0.15);
+}
+@keyframes fadeInUp{
+  from{opacity:0;transform:translateY(20px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.platform-header{
+  display:flex;align-items:center;gap:0.5rem;padding:0.75rem 1rem;
+  background:rgba(255,255,255,0.04);font-size:0.95rem;
+}
+.platform-dot{
+  display:inline-block;width:10px;height:10px;border-radius:50%;
+}
+.tags{
+  margin-left:auto;font-size:0.8rem;color:#c7d2fe;
+  background:rgba(99,102,241,0.2);padding:0.15rem 0.6rem;border-radius:20px;
+}
+.platform-content{padding:0.5rem 1rem 0.75rem}
+.platform-content p{color:#aaa;font-style:italic;margin:0.5rem 0}
+.platform-content .error{color:#f87171}
+ul.item-list{list-style:none}
+ul.item-list li{
+  padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.05);
+  display:flex;align-items:center;gap:0.4rem;
+}
+ul.item-list li:last-child{border-bottom:none}
+ul.item-list a{
+  color:#93c5fd;text-decoration:none;font-size:0.95rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+ul.item-list a:hover{text-decoration:underline;color:#a5b4fc}
+
+/* 查看更多按钮 */
+button.show-more{
+  margin-top:0.5rem;padding:0.4rem 0.8rem;border-radius:6px;
+  border:1px solid #4f46e5;background:transparent;color:#93c5fd;
+  cursor:pointer;font-size:0.9rem;transition:all 0.2s;
+}
+button.show-more:hover{
+  background:rgba(79,70,229,0.15);color:#c7d2fe;
+}
+
+/* 移动端适配 */
+@media(max-width:640px){
+  body{padding:1rem}
+  h1{font-size:1.8rem}
+  .form{flex-direction:column}
+  button{width:100%}
+  .platform-header{flex-wrap:wrap}
+  #results{grid-template-columns:1fr}
+  ul.item-list a{
+    white-space:normal;overflow:visible;text-overflow:unset;
+  }
+}
   </style>
 </head>
 <body>
