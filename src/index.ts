@@ -14,7 +14,6 @@ async function handleSearch(request: Request, _env: Env, ctx: ExecutionContext, 
     const formData = await request.formData();
     const game = formData.get("game") as string;
 
-
     if (!game || typeof game !== 'string') {
       return new Response(JSON.stringify({ error: "Game name is required" }), {
         status: 400,
@@ -25,11 +24,10 @@ async function handleSearch(request: Request, _env: Env, ctx: ExecutionContext, 
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
-    // 将异步任务交给 waitUntil 来处理，确保它能完整执行
     ctx.waitUntil(
       handleSearchRequestStream(game.trim(), platforms, writer)
-        。catch(err => console.error("Streaming error:", err))
-        。finally(() => writer.close())
+        .catch(err => console.error("Streaming error:", err))
+        .finally(() => writer.close())
     );
 
     return new Response(readable, {
@@ -54,9 +52,10 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-//    if (url.pathname === '/') {
-//      return buildRedirectResponse(url.origin);
-//    }
+    // 已关闭自动跳转
+    // if (url.pathname === '/') {
+    //   return buildRedirectResponse(url.origin);
+    // }
 
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
@@ -71,6 +70,6 @@ export default {
       }
     }
 
-    return new Response("Not Found", { status: 404 });
+    return new Response("Worker 运行正常\n接口：POST /gal  POST /patch", { status: 404 });
   },
 };
