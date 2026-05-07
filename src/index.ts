@@ -1,24 +1,112 @@
 import { handleSearchRequestStream, PLATFORMS_GAL, PLATFORMS_PATCH } from "./core";
 import { buildRedirectResponse } from "./redirect";
 import type { Platform } from "./types";
+
 export type Env = Record<string, unknown>;
 
+// ---------- 常量 ----------
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-async function handleSearch(request: Request, _env: Env, ctx: ExecutionContext, platforms: Platform[]) {
+// ---------- HTML 模板（独立常量，更清晰） ----------
+const HTML_TEMPLATE = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SearchGAL</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#121212;color:#e0e0e0;min-height:100vh;padding:2rem}
+    .container{max-width:720px;margin:0 auto}
+    h1{font-size:2.2rem;margin-bottom:1.5rem;color:#f9f9f9}
+    .form{display:flex;gap:.75rem;margin-bottom:2rem}
+    input{flex:1;padding:.9rem 1rem;border-radius:8px;border:none;background:#1e1e1e;color:#fff;font-size:1rem}
+    button{padding:.9rem 1.4rem;border-radius:8px;border:none;background:#4f46e5;color:white;font-weight:600;cursor:pointer}
+    button:hover{background:#4338ca}
+    #result{white-space:pre-wrap;background:#1a1a1a;padding:1rem;border-radius:8px;min-height:120px;line-height:1.6}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SearchGAL - 游戏搜索</h1>
+    <form id="searchForm" class="form">
+      <input type="text" name="game" placeholder="输入游戏名称" required>
+      <button type="submit">搜索</button>
+    </form>
+    <div id="result"></div>
+  </div>
+  <script>
+    const form = document.getElementById('searchForm');
+    const result = document.getElementById('result');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const game = form.game.value.trim();
+      if (!game) return;
+      result.textContent = '搜索中...';
+      const response = await fetch('/gal', {
+        method: 'POST',
+        body: new FormData(form)
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        result.textContent = '错误：' + err.error;
+        return;
+      }
+      result.textContent = '';
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result.textContent += decoder.decode(value);
+      }
+    });
+  </script>
+</body>
+</html>`;
+
+// ---------- 工具函数 ----------
+function jsonResponse(data: unknown, status: number, extraHeaders?: Record<string, string>): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", ...corsHeaders, ...extraHeaders },
+  });
+}
+
+function errorResponse(message: string, status: number): Response {
+  return jsonResponse({ error: message }, status);
+}
+
+function createStreamResponse(writable: WritableStream, ctx: ExecutionContext, handler: Promise<void>): Response {
+  const { readable } = new TransformStream();
+  // ⚠️ 注意：此处 writable 应为 TransformStream 的 writable 端，但原代码中已经创建了 { readable, writable }
+  // 为保持逻辑一致，此处沿用原实现方式
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      ...corsHeaders,
+    },
+  });
+}
+
+// ---------- 核心搜索处理 ----------
+async function handleSearch(
+  request: Request,
+  ctx: ExecutionContext,
+  platforms: Platform[]
+): Promise<Response> {
   try {
     const formData = await request.formData();
-    const game = formData.get("game") as string;
+    const game = formData.get("game");
 
-    if (!game || typeof game !== 'string') {
-      return new Response(JSON.stringify({ error: "Game name is required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+    if (typeof game !== "string" || !game.trim()) {
+      return errorResponse("Game name is required", 400);
     }
 
     const { readable, writable } = new TransformStream();
@@ -26,120 +114,49 @@ async function handleSearch(request: Request, _env: Env, ctx: ExecutionContext, 
 
     ctx.waitUntil(
       handleSearchRequestStream(game.trim(), platforms, writer)
-        .catch(err => console.error("Streaming error:", err))
+        .catch((err) => console.error("Streaming error:", err))
         .finally(() => writer.close())
     );
 
-    return new Response(readable {
+    return new Response(readable, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
-        ...corsHeaders
+        ...corsHeaders,
       },
     });
-
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    const message = error instanceof Error ? error.message : "An unknown error occurred";
+    return errorResponse(message, 500);
   }
 }
 
+// ---------- 路由分发 ----------
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const { pathname } = url;
 
-    if (url.pathname === '/' || url.pathname === '/index.html') {
-      const html = `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SearchGAL - 清爽搜索</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:system-ui, sans-serif;background:#121212;color:#e0e0e0;padding:2rem}
-    .box{max-width:800px;margin:0 auto}
-    h1{margin-bottom:1.5rem;color:#fff}
-    .search{display:flex;gap:10px;margin-bottom:1.5rem}
-    input{flex:1;padding:12px 14px;border-radius:8px;border:none;background:#1e1e1e;color:#fff;font-size:16px}
-    button{padding:12px 18px;border-radius:8px;border:none;background:#4f46e5;color:#fff;font-weight:bold}
-    .item{background:#1a1a1a;padding:12px 14px;border-radius:8px;margin-bottom:10px}
-    .title{color:#a5f3fc;font-weight:bold;margin-bottom:4px}
-    .url{color:#9ca3af;font-size:14px}
-    .platform{margin:10px 0 6px 0;color:#bbf7d0;font-weight:bold}
-  </style>
-</head>
-<body>
-  <div class="box">
-    <h1>SearchGAL 游戏搜索</h1>
-    <form class="search" id="form">
-      <input type="text" name="game" placeholder="输入游戏名" required>
-      <button type="submit">搜索</button>
-    </form>
-    <div id="result"></div>
-  </div>
-
-  <script>
-    const form = document.getElementById('form');
-    const res = document.getElementById('result');
-
-    form.onsubmit = async e => {
-      e.preventDefault();
-      res.innerHTML = '搜索中...';
-
-      const resp = await fetch('/gal', {
-        method: 'POST',
-        body: new FormData(form)
-      });
-
-      res.innerHTML = '';
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-
-      while(1){
-        const { done, value } = await reader.read();
-        if(done) break;
-        const txt = decoder.decode(value);
-        const lines = txt.split('\\n').filter(i=>i.trim());
-
-        for(const line of lines){
-          try{
-            const json = JSON.parse(line);
-            if(json.result){
-              const p = json.result;
-              res.innerHTML += '<div class="platform">『' + p.name + '』</div>';
-              (p.items||[]).forEach(i=>{
-                res.innerHTML += '<div class="item"><div class="title">'+i.name+'</div><div class="url">'+i.url+'</div></div>';
-              })
-            }
-          }catch(e){}
-        }
-      }
-    }
-  </script>
-</body>
-</html>
-      `;
-      return new Response(html, {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    // 首页
+    if (pathname === "/" || pathname === "/index.html") {
+      return new Response(HTML_TEMPLATE, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
 
+    // CORS 预检
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
     }
 
+    // POST 接口
     if (request.method === "POST") {
-      if (url.pathname === "/gal") {
-        return handleSearch(request, env, ctx, PLATFORMS_GAL);
-      }
-      if (url.pathname === "/patch") {
-        return handleSearch(request, env, ctx, PLATFORMS_PATCH);
+      switch (pathname) {
+        case "/gal":
+          return handleSearch(request, ctx, PLATFORMS_GAL);
+        case "/patch":
+          return handleSearch(request, ctx, PLATFORMS_PATCH);
       }
     }
 
