@@ -287,11 +287,11 @@ async function handleSearch(
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
-    ctx.waitUntil(
-      handleSearchRequestStream(game.trim(), platforms, writer)
-        。catch((err) => console.error("Streaming error:", err))
-        。finally(() => writer.close())
-    );
+ctx.waitUntil(
+  handleSearchRequestStream(game.trim(), platforms, writer)
+    .catch((err) => console.error("Streaming error:", err))
+    .finally(() => writer.close())
+);
 
     return new Response(readable, {
       headers: {
