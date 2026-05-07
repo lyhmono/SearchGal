@@ -54,9 +54,9 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-#    if (url.pathname === '/') {
-#      return buildRedirectResponse(url.origin);
-#    }
+//    if (url.pathname === '/') {
+//      return buildRedirectResponse(url.origin);
+//    }
 
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
