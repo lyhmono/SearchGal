@@ -199,65 +199,95 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       }
     }
 
-    function addPlatformResult(result) {
-      const card = document.createElement('div');
-      card.className = 'platform-card';
+function addPlatformResult(result) {
+  const card = document.createElement('div');
+  card.className = 'platform-card';
 
-      // 头部
-      const header = document.createElement('div');
-      header.className = 'platform-header';
+  // 头部
+  const header = document.createElement('div');
+  header.className = 'platform-header';
 
-      const dot = document.createElement('span');
-      dot.className = 'platform-dot';
-      dot.style.background = result.color || '#888';
+  const dot = document.createElement('span');
+  dot.className = 'platform-dot';
+  dot.style.background = result.color || '#888';
 
-      const name = document.createElement('strong');
-      name.textContent = result.name;
+  const name = document.createElement('strong');
+  name.textContent = result.name;
 
-      header.appendChild(dot);
-      header.appendChild(name);
+  header.appendChild(dot);
+  header.appendChild(name);
 
-      if (result.tags && result.tags.length) {
-        const tagsSpan = document.createElement('span');
-        tagsSpan.className = 'tags';
-        tagsSpan.textContent = result.tags.join(', ');
-        header.appendChild(tagsSpan);
-      }
+  if (result.tags && result.tags.length) {
+    const tagsSpan = document.createElement('span');
+    tagsSpan.className = 'tags';
+    tagsSpan.textContent = result.tags.join(', ');
+    header.appendChild(tagsSpan);
+  }
 
-      card.appendChild(header);
+  card.appendChild(header);
 
-      // 内容区
-      const content = document.createElement('div');
-      content.className = 'platform-content';
+  // 内容区
+  const content = document.createElement('div');
+  content.className = 'platform-content';
 
-      if (result.error) {
-        const errP = document.createElement('p');
-        errP.className = 'error';
-        errP.textContent = '⚠️ ' + result.error;
-        content.appendChild(errP);
-      } else if (result.items && result.items.length > 0) {
-        const ul = document.createElement('ul');
-        ul.className = 'item-list';
-        result.items.forEach(item => {
-          const li = document.createElement('li');
-          const a = document.createElement('a');
-          a.href = item.url;
-          a.textContent = item.name;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          li.appendChild(a);
-          ul.appendChild(li);
-        });
-        content.appendChild(ul);
-      } else {
-        const noRes = document.createElement('p');
-        noRes.textContent = '无结果';
-        content.appendChild(noRes);
-      }
+  if (result.error) {
+    const errP = document.createElement('p');
+    errP.className = 'error';
+    errP.textContent = '⚠️ ' + result.error;
+    content.appendChild(errP);
+  } else if (result.items && result.items.length > 0) {
+    const allItems = result.items;
+    const showLimit = 5;  // 默认只显示5个
 
-      card.appendChild(content);
-      resultsContainer.appendChild(card);
+    const ul = document.createElement('ul');
+    ul.className = 'item-list';
+
+    function renderItems(expanded) {
+      ul.innerHTML = '';
+      const itemsToShow = expanded ? allItems : allItems.slice(0, showLimit);
+      itemsToShow.forEach(item => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = item.url;
+        a.textContent = item.name;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
     }
+
+    renderItems(false);
+    content.appendChild(ul);
+
+    if (allItems.length > showLimit) {
+      const toggleBtn = document.createElement('button');
+      toggleBtn.textContent = `查看更多 (${allItems.length - showLimit})`;
+      toggleBtn.style.cssText = `
+        margin-top: 0.5rem; padding: 0.4rem 0.8rem; border-radius: 6px;
+        border: 1px solid #4f46e5; background: transparent; color: #93c5fd;
+        cursor: pointer; font-size: 0.9rem;
+      `;
+
+      let expanded = false;
+      toggleBtn.addEventListener('click', () => {
+        expanded = !expanded;
+        renderItems(expanded);
+        toggleBtn.textContent = expanded ? '收起' : `查看更多 (${allItems.length - showLimit})`;
+      });
+
+      content.appendChild(toggleBtn);
+    }
+  } else {
+    const noRes = document.createElement('p');
+    noRes.textContent = '无结果';
+    content.appendChild(noRes);
+  }
+
+  card.appendChild(content);
+  resultsContainer.appendChild(card);
+}
+
   </script>
 </body>
 </html>`;
@@ -289,7 +319,7 @@ async function handleSearch(
 
 ctx.waitUntil(
   handleSearchRequestStream(game.trim(), platforms, writer)
-    .catch((err) => console.error("Streaming error:", err))
+    /* . */catch((err) => console.error("Streaming error:", err))
     .finally(() => writer.close())
 );
 
