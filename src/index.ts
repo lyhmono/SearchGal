@@ -9,7 +9,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// ---------- 安全、优化的 HTML 模板 ----------
+// ---------- 赞美伟大的DeepSeek ----------
 const HTML_TEMPLATE = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
