@@ -28,8 +28,8 @@ async function handleSearch(request: Request, _env: Env, ctx: ExecutionContext, 
     // 将异步任务交给 waitUntil 来处理，确保它能完整执行
     ctx.waitUntil(
       handleSearchRequestStream(game.trim(), platforms, writer)
-        .catch(err => console.error("Streaming error:", err))
-        .finally(() => writer.close())
+        。catch(err => console.error("Streaming error:", err))
+        。finally(() => writer.close())
     );
 
     return new Response(readable, {
@@ -54,9 +54,9 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === '/') {
-      return buildRedirectResponse(url.origin);
-    }
+#    if (url.pathname === '/') {
+#      return buildRedirectResponse(url.origin);
+#    }
 
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
