@@ -52,10 +52,76 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // 已关闭自动跳转
-    // if (url.pathname === '/') {
-    //   return buildRedirectResponse(url.origin);
-    // }
+    // ===================== 首页直接显示网页，不跳转 =====================
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      const html = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SearchGAL</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#121212;color:#e0e0e0;min-height:100vh;padding:2rem}
+    .container{max-width:720px;margin:0 auto}
+    h1{font-size:2.2rem;margin-bottom:1.5rem;color:#f9f9f9}
+    .form{display:flex;gap:.75rem; margin-bottom:2rem}
+    input{flex:1;padding:.9rem 1rem;border-radius:8px;border:none;background:#1e1e1e;color:#fff;font-size:1rem}
+    button{padding:.9rem 1.4rem;border-radius:8px;border:none;background:#4f46e5;color:white;font-weight:600;cursor:pointer}
+    button:hover{background:#4338ca}
+    #result{white-space:pre-wrap;background:#1a1a1a;padding:1rem;border-radius:8px;min-height:120px;line-height:1.6}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SearchGAL - 游戏搜索</h1>
+    <form id="searchForm" class="form">
+      <input type="text" name="game" placeholder="输入游戏名称" required>
+      <button type="submit">搜索</button>
+    </form>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('searchForm');
+    const result = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const game = form.game.value.trim();
+      if (!game) return;
+      result.textContent = '搜索中...';
+
+      const response = await fetch('/gal', {
+        method: 'POST',
+        body: new FormData(form)
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        result.textContent = '错误：' + err.error;
+        return;
+      }
+
+      result.textContent = '';
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result.textContent += decoder.decode(value);
+      }
+    });
+  </script>
+</body>
+</html>
+      `;
+      return new Response(html, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      });
+    }
 
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
@@ -70,6 +136,6 @@ export default {
       }
     }
 
-    return new Response("Worker 运行正常\n接口：POST /gal  POST /patch", { status: 404 });
+    return new Response("Not Found", { status: 404 });
   },
 };
