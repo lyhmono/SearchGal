@@ -313,7 +313,7 @@ async function handleSearch(
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
-ctx。waitUntil(
+ctx.waitUntil(
   handleSearchRequestStream(game.trim(), platforms, writer)['catch']((err) => console.error("Streaming error:", err))
     ['finally'](() => writer.close())
 );
