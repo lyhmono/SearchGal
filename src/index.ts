@@ -300,7 +300,7 @@ function errorResponse(message: string, status: number): Response {
 async function handleSearch(
   request: Request,
   ctx: ExecutionContext,
-  platforms: Platform[]
+  platforms: 平台[]
 ): Promise<Response> {
   try {
     const formData = await request.formData();
@@ -313,12 +313,10 @@ async function handleSearch(
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
-ctx.waitUntil(
-  handleSearchRequestStream(game.trim(), platforms, writer)
-    /* . */catch((err) => console.error("Streaming error:", err))
-    .finally(() => writer.close())
+ctx。waitUntil(
+  handleSearchRequestStream(game.trim(), platforms, writer)['catch']((err) => console.error("Streaming error:", err))
+    ['finally'](() => writer.close())
 );
-
     return new Response(readable, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
