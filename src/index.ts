@@ -262,18 +262,14 @@ function addPlatformResult(result) {
 
     if (allItems.length > showLimit) {
       const toggleBtn = document.createElement('button');
-      toggleBtn.textContent = `查看更多 (${allItems.length - showLimit})`;
-      toggleBtn.style.cssText = `
-        margin-top: 0.5rem; padding: 0.4rem 0.8rem; border-radius: 6px;
-        border: 1px solid #4f46e5; background: transparent; color: #93c5fd;
-        cursor: pointer; font-size: 0.9rem;
-      `;
+      toggleBtn.textContent = '查看更多 (' + (allItems.length - showLimit) + ')';
+      toggleBtn.style.cssText = 'margin-top:0.5rem;padding:0.4rem 0.8rem;border-radius:6px;border:1px solid #4f46e5;background:transparent;color:#93c5fd;cursor:pointer;font-size:0.9rem';
 
       let expanded = false;
       toggleBtn.addEventListener('click', () => {
         expanded = !expanded;
         renderItems(expanded);
-        toggleBtn.textContent = expanded ? '收起' : `查看更多 (${allItems.length - showLimit})`;
+        toggleBtn.textContent = expanded ? '收起' : '查看更多 (' + (allItems.length - showLimit) + ')';
       });
 
       content.appendChild(toggleBtn);
