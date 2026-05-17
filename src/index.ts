@@ -793,10 +793,10 @@ searchForm.addEventListener('submit',function(e){
   e.preventDefault();var game=searchInput.value.trim();if(!game||isSearching)return;
   var now=Date.now();if(now-lastSearchTime<COOLDOWN)return;lastSearchTime=now;
   setSearching(true);saveHistory(game);
-  // 手动构建 FormData（不能依赖 form 自动收集，因为 setSearching 会 disabled 输入框）
-  var fd=new FormData();fd.append('game',game);
+  // URLSearchParams 发送，兼容性最好
+  var body='game='+encodeURIComponent(game);
 
-  fetch('/'+searchMode,{method:'POST',body:fd}).then(function(res){
+  fetch('/'+searchMode,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body}).then(function(res){
     if(!res.ok)return res.json().then(function(err){throw new Error(err.error||'搜索失败 ('+res.status+')')});
     var reader=res.body.getReader(),decoder=new TextDecoder();buffer='';
     function pump(){return reader.read().then(function(r){
@@ -900,15 +900,15 @@ async function handleSearch(
   ctx: ExecutionContext,
   platforms: Platform[],
 ): Promise<Response> {
-  let game: string;
-  const contentType = request.headers.get("content-type") || "";
+  let game = "";
   try {
-    if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
-      const fd = await request.formData();
-      game = (fd.get("game") as string) ?? "";
-    } else {
-      const body = await request.json() as Record<string, unknown>;
-      game = String(body.game ?? "");
+    const text = await request.text();
+    // URLSearchParams 解析（multipart 和 urlencoded 都兼容）
+    const params = new URLSearchParams(text);
+    game = params.get("game") || "";
+    // JSON 回退
+    if (!game) {
+      try { const body = JSON.parse(text); game = String(body.game || ""); } catch { /* not JSON */ }
     }
   } catch { return errorResponse("无法解析请求体", 400); }
 
