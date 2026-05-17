@@ -266,6 +266,7 @@ body{
   outline:none;font-family:inherit;
 }
 #searchInput::placeholder{color:var(--text-3)}
+#searchInput[readonly]{opacity:0.5;cursor:not-allowed}
 .input-clear{
   position:absolute;right:0.5rem;width:30px;height:30px;border-radius:50%;
   border:none;background:transparent;color:var(--text-3);
@@ -756,7 +757,7 @@ function showSkeletons(count){
    STATE MGMT
    ═══════════════════════════════════════ */
 function setSearching(active){
-  isSearching=active;submitBtn.disabled=active;searchInput.disabled=active;
+  isSearching=active;submitBtn.disabled=active;searchInput.readOnly=active;
   if(active){resultsEl.innerHTML='';progressFill.style.width='0%';progressFill.classList.remove('done');
     progressText.textContent='搜索中...';statsBar.style.display='none';startTime=Date.now();
     resultCount=0;errorCount=0;totalPlatforms=0;historyDD.classList.remove('show')}
@@ -792,8 +793,10 @@ searchForm.addEventListener('submit',function(e){
   e.preventDefault();var game=searchInput.value.trim();if(!game||isSearching)return;
   var now=Date.now();if(now-lastSearchTime<COOLDOWN)return;lastSearchTime=now;
   setSearching(true);saveHistory(game);
+  // 手动构建 FormData（不能依赖 form 自动收集，因为 setSearching 会 disabled 输入框）
+  var fd=new FormData();fd.append('game',game);
 
-  fetch('/'+searchMode,{method:'POST',body:new FormData(searchForm)}).then(function(res){
+  fetch('/'+searchMode,{method:'POST',body:fd}).then(function(res){
     if(!res.ok)return res.json().then(function(err){throw new Error(err.error||'搜索失败 ('+res.status+')')});
     var reader=res.body.getReader(),decoder=new TextDecoder();buffer='';
     function pump(){return reader.read().then(function(r){
