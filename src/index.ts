@@ -179,6 +179,8 @@ body{
 .rlist li+li{border-top:1px solid rgba(255,255,255,.025)}
 .rlist a{color:var(--l);text-decoration:none;font-size:.9rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color .15s}
 .rlist a:hover{color:var(--a2);text-decoration:underline;text-underline-offset:3px}
+/* 结果分区：有结果 vs 空/错误 之间留间距 */
+.card[data-rank="0"]+.card:not([data-rank="0"]){margin-top:1.2rem}
 .rlist li::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--a);flex-shrink:0;opacity:.4}
 .cpbtn{background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:.8rem;padding:.2rem .35rem;border-radius:4px;transition:all .2s;flex-shrink:0;line-height:1;opacity:0}
 .rlist li:hover .cpbtn,.cpbtn.mv{opacity:1}
@@ -327,12 +329,16 @@ function pm(d){
   if(typeof d.total==='number'&&!d.progress){tp=d.total;pt.textContent='0/'+tp;skels(Math.min(tp,6));return}
   if(d.progress){var c=d.progress.completed,t=d.progress.total;if(!tp)tp=t;pf.style.width=(c/t*100)+'%';pt.textContent=c+'/'+t;
     if(d.result){res.querySelectorAll('.skel').forEach(function(el){el.remove()});ac(d.result);rc++;if(d.result.error)ec++}}
-  if(d.done){res.querySelectorAll('.skel').forEach(function(el){el.remove()});if(!res.children.length)se()}
+  if(d.done){res.querySelectorAll('.skel').forEach(function(el){el.remove()});sortCards();if(!res.children.length)se()}
 }
 function se(){res.innerHTML='<div class="empt"><span class="eicon">📭</span><h3>没有找到相关资源</h3><p>试试缩短关键词，或使用中文名称</p></div>';pt.textContent='无结果'}
 
 function ac(r){
-  var c=document.createElement('div');c.className='card';if(r.error)c.classList.add('err');if(r.color)c.style.setProperty('--ca',r.color);else if(r.error)c.style.setProperty('--ca','var(--e)');
+  var c=document.createElement('div');c.className='card';
+  if(r.error){c.classList.add('err');c.setAttribute('data-rank','2')}
+  else if(r.items&&r.items.length){c.setAttribute('data-rank','0')}
+  else{c.setAttribute('data-rank','1')}
+  if(r.color)c.style.setProperty('--ca',r.color);else if(r.error)c.style.setProperty('--ca','var(--e)');
   var hd=document.createElement('div');hd.className='chd';
   var dot=document.createElement('span');dot.className='cdot';dot.style.background=r.color||'#888';
   var nm=document.createElement('span');nm.className='cname';nm.textContent=r.name;hd.appendChild(dot);hd.appendChild(nm);
@@ -349,6 +355,13 @@ function ac(r){
   }else{var nr=document.createElement('p');nr.className='empty';nr.textContent='无结果';bd.appendChild(nr)}
   c.appendChild(bd);
   var sk=res.querySelector('.skel');if(sk)sk.replaceWith(c);else res.appendChild(c)
+}
+
+function sortCards(){
+  var cards=Array.from(res.children).filter(function(c){return c.classList.contains('card')});
+  if(!cards.length)return;
+  cards.sort(function(a,b){return (a.getAttribute('data-rank')||'1')-(b.getAttribute('data-rank')||'1')});
+  cards.forEach(function(c){res.appendChild(c)})
 }
 
 // keyboard
