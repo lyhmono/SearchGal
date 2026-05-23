@@ -582,17 +582,6 @@ document.addEventListener('click',function(e){if(!hd.contains(e.target)&&e.targe
 ucl();
 </script>
 
-<!-- Service Worker 离线支持 -->
-<script>
-);
-}
-</script>
-
-<!-- Service Worker 离线支持 -->
-<script>
-);
-}
-</script>
 </body>
 </html>`;
 

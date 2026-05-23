@@ -157,10 +157,10 @@ export default {
     if (req.method === "POST") {
       const ip = req.headers.get("CF-Connecting-IP") || req.headers.get("X-Forwarded-For") || "";
       if (await limited(env, ip)) {
-      const r = err("请求过于频繁，请稍后再试", 429, origin);
-      r.headers.set("Retry-After", "60");
-      return r;
-    }
+        const r = err("请求过于频繁，请稍后再试", 429, origin);
+        r.headers.set("Retry-After", "60");
+        return r;
+      }
       if (p === "/gal")    return handleSearch(req, ctx, PLATFORMS_GAL, env);
       if (p === "/patch") return handleSearch(req, ctx, PLATFORMS_PATCH, env);
     }
