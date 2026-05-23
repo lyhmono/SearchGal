@@ -13,9 +13,5 @@ ENVIRONMENT = "production"
 [[kv_namespaces]]
 binding = "SEARCHGAL_KV"
 id = "d547b4afb56146a09d29365560eaf530"
-
-# 预览环境（本地开发用）
-[[kv_namespaces]]
-binding = "SEARCHGAL_KV"
-id = "d547b4afb56146a09d29365560eaf530"  # 暂时使用同一个，或创建单独的预览命名空间
-preview = true
+# 如需预览环境使用不同 KV，取消注释下方并创建预览命名空间
+# preview_id = "你的预览环境_KV_ID"
