@@ -194,7 +194,8 @@ body{
 </style>
 </head>
 <body>
-<div class="bg-aurora"></div><div class="bg-grid"></div>
+<div id="bgContainer"></div><div class="bg-grid"></div>
+<div class="theme-dots" id="themeDots"></div>
 <div class="app">
 <header class="header">
   <a class="logo" onclick="clr();document.getElementById('q').focus()"><span class="ic">🔍</span>SearchGAL</a>
@@ -227,7 +228,301 @@ body{
 <button class="b2t" id="b2t" aria-label="回到顶部">↑</button>
 <div class="toast" id="toast"><span id="ticon"></span><span id="tmsg"></span></div>
 <script>
+
+/* ===== 二次元背景主题系统 ===== */
+(function(){
+  var themes = [
+    {
+      name:'樱花',
+      cssClass:'bg-sakura',
+      init:function(c){
+        for(var i=0;i<18;i++){var p=document.createElement('div');p.className='sakura-petal';
+          var s=Math.random()*.8+.4,w=p.style;
+          w.width=s+'em';w.height=s+'em';w.left=Math.random()*100+'%';
+          w.top=-(Math.random()*40+10)+'px';
+          w.background='hsl('+(330+Math.random()*30)+','+(70+Math.random()*25)+'%,'+ (65+Math.random()*20)+'%)';
+          w.animationDuration=(6+Math.random()*8)+'s';w.animationDelay=Math.random()*10+'s';
+          c.appendChild(p);
+        }
+      }
+    },
+    {
+      name:'星空',
+      cssClass:'bg-stars',
+      init:function(c){
+        for(var i=0;i<50;i++){var s=document.createElement('div');s.className='star';
+          var sz=Math.random()*.6+.15,w=s.style;
+          w.width=sz+'em';w.height=sz+'em';w.left=Math.random()*100+'%';w.top=Math.random()*100+'%';
+          w.animationDuration=(2+Math.random()*4)+'s';w.animationDelay=Math.random()*5+'s';
+          c.appendChild(s);
+        }
+      }
+    },
+    {
+      name:'极光',
+      cssClass:'bg-aurora2',
+      init:function(c){
+        var colors=['rgba(0,255,180,.12)','rgba(100,200,255,.10)','rgba(180,100,255,.10)','rgba(0,200,255,.10)'];
+        for(var i=0;i<3;i++){var b=document.createElement('div');b.className='aurora-band';
+          var w=b.style;
+          w.width=(50+Math.random()*40)+'vw';w.height=(30+Math.random()*30)+'vh';
+          w.left=(i*25-10)+'%';w.top=(10+Math.random()*50)+'%';
+          w.background=colors[i%colors.length];w.animationDuration=(15+Math.random()*20)+'s';
+          w.animationDelay=Math.random()*10+'s';c.appendChild(b);
+        }
+      }
+    },
+    {
+      name:'海洋',
+      cssClass:'bg-ocean',
+      init:function(c){
+        for(var i=0;i<6;i++){var w=document.createElement('div');
+          w.style.cssText='position:absolute;width:'+(80+Math.random()*120)+'vw;height:2px;left:'+(-20+Math.random()*20)+'%;top:'+(30+Math.random()*50)+'%;background:linear-gradient(90deg,transparent,rgba(0,180,255,.06),transparent);border-radius:50%;animation:ocean-wave '+(4+Math.random()*6)+'s ease-in-out infinite;animation-delay:'+Math.random()*3+'s';
+          c.appendChild(w);
+        }
+      }
+    },
+    {
+      name:'紫藤',
+      cssClass:'bg-wisteria',
+      init:function(c){
+        for(var i=0;i<12;i++){var b=document.createElement('div');b.className='wisteria-bell';
+          var w=b.style;w.width=Math.random()*.6+.3+'em';w.height=Math.random()*.6+.3+'em';
+          w.left=Math.random()*100+'%';w.top=-(Math.random()*20+5)+'px';
+          w.background='hsl('+(260+Math.random()*30)+','+(55+Math.random()*20)+'%,'+ (60+Math.random()*15)+'%)';
+          w.animationDuration=(5+Math.random()*6)+'s';w.animationDelay=Math.random()*8+'s';
+          c.appendChild(b);
+        }
+      },
+    {
+      name:'二次元图',
+      cssClass:'bg-acgpic',
+      init:function(c){
+        // 动态插入 CSS 样式
+    var style=document.createElement('style');
+    style.textContent='.bg-acgpic{position:fixed;inset:0;z-index:0;overflow:hidden}.bg-acgpic::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:1;pointer-events:none}.bg-acgpic .acg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.5s ease;z-index:0}.bg-acgpic .acg-img.loaded{opacity:1}';
+    document.head.appendChild(style);
+    var img=document.createElement('img');
+        img.className='acg-img';
+        img.alt='';
+        img.loading='lazy';
+        // 避免缓存：加随机参数
+        var apiUrl='https://api.yppp.net/pc.php?return=json&_t='+Date.now()+'&_r='+Math.random().toFixed(8);
+        img.onload=function(){img.classList.add('loaded')};
+        img.onerror=function(){
+          // 失败时用渐变兜底
+          c.style.background='linear-gradient(180deg,#0a0a1a,#1a1a3a,#0a0a1a)';
+        };
+        fetch(apiUrl)
+          .then(function(r){return r.json()})
+          .then(function(d){
+            if(d&&d.acgurl)img.src=d.acgurl;
+            else img.onerror();
+          })
+          .catch(function(){img.onerror()});
+        c.appendChild(img);
+      }
+    },
+    }
+  ];
+
+  var container=document.getElementById('bgContainer');
+  var dotsEl=document.getElementById('themeDots');
+  var currentTheme=localStorage.getItem('bgTheme');
+  var currentIdx=0;
+
+  function buildDots(){
+    dotsEl.innerHTML='';
+    themes.forEach(function(t,i){
+      var d=document.createElement('button');d.className='theme-dot'+(i===currentIdx?' active':'');
+      d.title=t.name;d.onclick=function(){applyTheme(i)};dotsEl.appendChild(d);
+    });
+  }
+
+  function applyTheme(idx){
+    var t=themes[idx];
+    var old=container.querySelector('.bg-theme');
+    if(old){
+      old.classList.remove('active');
+      setTimeout(function(){if(old.parentNode)old.parentNode.removeChild(old)},1200);
+    }
+    var el=document.createElement('div');
+    el.className='bg-theme '+t.cssClass;
+    t.init(el);
+    container.appendChild(el);
+    requestAnimationFrame(function(){el.classList.add('active')});
+    currentIdx=idx;
+    localStorage.setItem('bgTheme',String(idx));
+    buildDots();
+  }
+
+  // 随机选主题（不与上次重复）
+  var available=themes.map(function(_,i){return i}).filter(function(i){return String(i)!==currentTheme});
+  if(available.length===0)available=[0];
+  var idx=available[Math.floor(Math.random()*available.length)];
+  applyTheme(idx);
+
+  // 显示主题指示点 4 秒
+  dotsEl.classList.add('show');
+  setTimeout(function(){dotsEl.classList.remove('show')},4000);
+})();
+
 var $=function(id){return document.getElementById(id)};
+// 按相关性排序渲染搜索结果
+(function(){
+  var _allResults = [];
+  var _searchDone = false;
+  var _sortTimer = null;
+  
+  // 收集 result 事件
+  var origResultHandler = null;
+  
+  // 在 SSE onmessage 里注入
+  setTimeout(function(){
+    if(!window._sseOrigOnmessage && window.EventSource){
+      // 劫持 SSE 处理
+      var es = null;
+      // 找到 SSE 实例（在 search() 函数里）
+      var origSearch = window.search;
+      if(origSearch){
+        window.search = function(){
+          _allResults = [];
+          _searchDone = false;
+          return origSearch.apply(this, arguments);
+        };
+      }
+    }
+  }, 100);
+  
+  // 处理单个 result
+  window._addResult = function(r){
+    if(!r || !r.items || !r.items.length) return;
+    _allResults.push(r);
+  };
+  
+  // 排序并渲染
+  window._renderSorted = function(){
+    if(!_searchDone) return;
+    var container = results;
+    if(!container) return;
+    
+    // 收集所有条目并排序
+    var flat = [];
+    _allResults.forEach(function(r){
+      (r.items||[]).forEach(function(it){
+        flat.push({
+          _score: it._score || 0,
+          title: it.title || it.name || '未知',
+          url: it.url || '#',
+          name: r.name,
+          color: r.color
+        });
+      });
+    });
+    
+    flat.sort(function(a,b){ return (b._score||0) - (a._score||0); });
+    
+    // 重新渲染
+    container.innerHTML = '';
+    flat.forEach(function(it){
+      var li = document.createElement('li');
+      li.dataset.score = it._score || 0;
+      li.innerHTML = '<a href="'+it.url.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">'+it.title.replace(/</g,'&lt;')+'</a>'+
+        '<button class="cpbtn" onclick="cp(\''+it.url.replace(/'/g,'\\'')+'\',this)" aria-label="复制链接">📋</button>';
+      container.appendChild(li);
+    });
+  };
+  
+  // 监听搜索完成
+  var origSseOnMessage = null;
+  setTimeout(function(){
+    // 在 SSE onmessage 里处理 result
+    var script = document.querySelector('script:last-of-type');
+  }, 500);
+})();
+
+// 收集所有搜索结果，搜索完成后按相关性排序渲染
+(function(){
+  var allResults = [];  // {name,color,tags,items,error}
+  var resultCards = {}; // name -> card DOM
+  var searchDone = false;
+
+  //  override: 保存原始 result 处理
+  var origHandle = null;
+
+  // 搜索结束后统一排序渲染
+  function renderSorted(){
+    if(!searchDone) return;
+    // 收集所有有结果的条目
+    var flat = [];
+    allResults.forEach(function(r){
+      (r.items||[]).forEach(function(it){
+        flat.push({
+          _score: it._score || 0,
+          title: it.title || '',
+          url: it.url || '#',
+          name: r.name,
+          color: r.color,
+          tags: r.tags||[],
+          error: r.error || ''
+        });
+      });
+    });
+    // 按分数降序
+    flat.sort(function(a,b){ return (b._score||0) - (a._score||0) });
+    // 重新渲染 #results
+    var container = $('results');
+    if(!container) return;
+    container.innerHTML = '';
+    // 分组：有结果的排前面，按最高分排平台顺序
+    var groups = {};
+    flat.forEach(function(it){
+      if(!groups[it.name]) groups[it.name] = {name:it.name,color:it.color,tags:it.tags,items:[],error:it.error};
+      groups[it.name].items.push(it);
+    });
+    // 按平台最高分排序
+    var sortedNames = Object.keys(groups).sort(function(a,b){
+      var ma = groups[a].items.reduce(function(m,x){return Math.max(m,x._score||0)},0);
+      var mb = groups[b].items.reduce(function(m,x){return Math.max(m,x._score||0)},0);
+      return mb - ma;
+    });
+    sortedNames.forEach(function(name){
+      var g = groups[name];
+      var card = document.createElement('div');
+      card.className = 'card'; card.dataset.rank = '0';
+      card.innerHTML = '<div class="chd">'+
+        '<span class="cdot" style="background:'+g.color+'"></span>'+
+        '<span class="cname">'+escH(g.name)+'</span>'+
+        '<span class="cbadge">'+(g.error?'错误':g.items.length+' 条')+'</span>'+
+        '</div>'+
+        '<div class="cbody">'+
+        (g.error?'<p class="err">'+escH(g.error)+'</p>':'<ul class="rlist">'+
+          g.items.map(function(it,i){
+            return '<li data-score="'+(it._score||0)+'">'+
+              '<a href="'+escA(it.url)+'" target="_blank" rel="noopener">'+escH(it.title)+'</a>'+
+              '<button class="cpbtn" onclick="cp(\''+escA(it.url)+'\',this)" aria-label="复制链接">📋</button>'+
+              '</li>';
+          }).join('')+'</ul>')+
+        '</div>';
+      container.appendChild(card);
+    });
+  }
+
+  // 在 SSE 的 result 事件里收集结果
+  // 劫持 EventSource / fetch SSE 的 result 处理
+  var origOnResult = null;
+  // 在 search 函数里，result 事件会调用一个回调，我们在那里注入
+  window._onSseResult = function(ev){
+    allResults.push(ev);
+  };
+  window._onSseDone = function(){
+    searchDone = true;
+    renderSorted();
+  };
+  function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function escA(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+})();
+
 var sf=$('sf'),q=$('q'),sb=$('sb'),icl=$('icl'),hd=$('hd'),pf=$('pf'),pt=$('ptext'),
     res=$('results'),sBar=$('sbar'),st=$('st'),toast=$('toast'),tmsg=$('tmsg'),ticon=$('ticon'),b2t=$('b2t');
 var m='gal',buf='',busy=false,t0=0,rc=0,ec=0,lt=0,tp=0,CD=2000,LM=8,HK='sgh',MH=5,tt=null;
@@ -362,6 +657,10 @@ ucl();
 </script>
 </body>
 </html>`;
+
+
+
+
 
 
 
