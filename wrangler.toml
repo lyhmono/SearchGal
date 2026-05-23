@@ -1,6 +1,17 @@
-name = "searchgalapi"
+name = "searchgal"
 main = "src/index.ts"
-compatibility_date = "2023-10-30"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
 
 [observability.logs]
 enabled = true
+
+[vars]
+ENVIRONMENT = "production"
+
+# 可选: KV 持久化熔断器
+# 1. Cloudflare Dashboard → KV → 创建命名空间
+# 2. 取消注释，填入 namespace ID
+# [[kv_namespaces]]
+# binding = "SEARCHGAL_KV"
+# id = "YOUR_ID"
