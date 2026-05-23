@@ -380,7 +380,7 @@ ucl();
 // ═══════════════════════════════════════════════
 //  Server
 // ═══════════════════════════════════════════════
-async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform[]): Promise<Response> {
+async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform[], env: Env): Promise<Response> {
   let game = "";
   try {
     const text = await req.text();
@@ -397,7 +397,7 @@ async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform
   const w = writable.getWriter();
   const enc = new TextEncoder();
   ctx.waitUntil(
-    handleSearchRequestStream(game, plats, w)
+    handleSearchRequestStream(game, plats, w, env)
       .catch((e) => { console.error("Stream err:", e); w.write(enc.encode(JSON.stringify({ error: "搜索出错", done: true }) + "\n")).catch(() => {}); })
       .finally(() => w.close().catch(() => {}))
   );
@@ -427,8 +427,8 @@ export default {
     if (req.method === "POST") {
       const ip = req.headers.get("CF-Connecting-IP") || req.headers.get("X-Forwarded-For") || "";
       if (limited(ip)) return err("请求过于频繁", 429);
-      if (p === "/gal") return handleSearch(req, ctx, PLATFORMS_GAL);
-      if (p === "/patch") return handleSearch(req, ctx, PLATFORMS_PATCH);
+      if (p === "/gal") return handleSearch(req, ctx, PLATFORMS_GAL, env);
+      if (p === "/patch") return handleSearch(req, ctx, PLATFORMS_PATCH, env);
     }
 
     return new Response("Not Found", { status: 404 });
