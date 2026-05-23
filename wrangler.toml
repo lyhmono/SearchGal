@@ -9,9 +9,13 @@ enabled = true
 [vars]
 ENVIRONMENT = "production"
 
-# 可选: KV 持久化熔断器
-# 1. Cloudflare Dashboard → KV → 创建命名空间
-# 2. 取消注释，填入 namespace ID
-# [[kv_namespaces]]
-# binding = "SEARCHGAL_KV"
-# id = "YOUR_ID"
+# KV 缓存 + 持久化熔断器
+# 1. 在 Cloudflare Dashboard → KV 创建命名空间，获取 ID
+# 2. 取消注释下方，填入你的 namespace ID
+[[kv_namespaces]]
+binding = "searchgal-cache"
+id = "d547b4afb56146a09d29365560eaf530"
+
+# 如需创建 KV，运行：
+# wrangler kv namespace create "searchgal-cache"
+# wrangler kv namespace create "searchgal-cache" --preview
