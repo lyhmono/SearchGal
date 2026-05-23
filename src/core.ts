@@ -118,7 +118,24 @@ export async function handleSearchRequestStream(
   await eachLimit(active, async (it) => {
     const p = it.p; const t0 = Date.now();
     try {
-      const res = await Promise.race([p.search(game), new Promise<PlatformSearchResult>((_, rj) => setTimeout(() => rj(new Error("超时")), PLATFORM_TIMEOUT_MS))]);
+      // 重试逻辑：失败时最多重试 1 次
+      let res: PlatformSearchResult | null = null;
+      let lastErr: string | null = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          res = await Promise.race([p.search(game), new Promise<PlatformSearchResult>((_, rj) => setTimeout(() => rj(new Error("超时")), PLATFORM_TIMEOUT_MS))]);
+          if (!res.error) break; // 成功，跳出重试
+          lastErr = res.error;
+          if (attempt < 1) await new Promise(r => setTimeout(r, 500)); // 失败等待 500ms 再重试
+        } catch (e) {
+          lastErr = e instanceof Error ? e.message : String(e);
+          if (attempt < 1) await new Promise(r => setTimeout(r, 500));
+        }
+      }
+      if (!res) {
+        // 两次都失败，构造错误结果
+        res = { items: [], count: 0, error: lastErr || "请求失败" };
+      }
       const ms = Date.now() - t0; done++;
       if (res.error) {
         fail(p.name, res.error);

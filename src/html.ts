@@ -236,90 +236,16 @@ body{
       name:'樱花',
       cssClass:'bg-sakura',
       init:function(c){
-        for(var i=0;i<18;i++){var p=document.createElement('div');p.className='sakura-petal';
-          var s=Math.random()*.8+.4,w=p.style;
-          w.width=s+'em';w.height=s+'em';w.left=Math.random()*100+'%';
-          w.top=-(Math.random()*40+10)+'px';
-          w.background='hsl('+(330+Math.random()*30)+','+(70+Math.random()*25)+'%,'+ (65+Math.random()*20)+'%)';
-          w.animationDuration=(6+Math.random()*8)+'s';w.animationDelay=Math.random()*10+'s';
-          c.appendChild(p);
-        }
-      }
-    },
-    {
-      name:'星空',
-      cssClass:'bg-stars',
-      init:function(c){
-        for(var i=0;i<50;i++){var s=document.createElement('div');s.className='star';
-          var sz=Math.random()*.6+.15,w=s.style;
-          w.width=sz+'em';w.height=sz+'em';w.left=Math.random()*100+'%';w.top=Math.random()*100+'%';
-          w.animationDuration=(2+Math.random()*4)+'s';w.animationDelay=Math.random()*5+'s';
-          c.appendChild(s);
-        }
-      }
-    },
-    {
-      name:'极光',
-      cssClass:'bg-aurora2',
-      init:function(c){
-        var colors=['rgba(0,255,180,.12)','rgba(100,200,255,.10)','rgba(180,100,255,.10)','rgba(0,200,255,.10)'];
-        for(var i=0;i<3;i++){var b=document.createElement('div');b.className='aurora-band';
-          var w=b.style;
-          w.width=(50+Math.random()*40)+'vw';w.height=(30+Math.random()*30)+'vh';
-          w.left=(i*25-10)+'%';w.top=(10+Math.random()*50)+'%';
-          w.background=colors[i%colors.length];w.animationDuration=(15+Math.random()*20)+'s';
-          w.animationDelay=Math.random()*10+'s';c.appendChild(b);
-        }
-      }
-    },
-    {
-      name:'海洋',
-      cssClass:'bg-ocean',
-      init:function(c){
-        for(var i=0;i<6;i++){var w=document.createElement('div');
-          w.style.cssText='position:absolute;width:'+(80+Math.random()*120)+'vw;height:2px;left:'+(-20+Math.random()*20)+'%;top:'+(30+Math.random()*50)+'%;background:linear-gradient(90deg,transparent,rgba(0,180,255,.06),transparent);border-radius:50%;animation:ocean-wave '+(4+Math.random()*6)+'s ease-in-out infinite;animation-delay:'+Math.random()*3+'s';
-          c.appendChild(w);
-        }
-      }
-    },
-    {
-      name:'紫藤',
-      cssClass:'bg-wisteria',
-      init:function(c){
-        for(var i=0;i<12;i++){var b=document.createElement('div');b.className='wisteria-bell';
-          var w=b.style;w.width=Math.random()*.6+.3+'em';w.height=Math.random()*.6+.3+'em';
-          w.left=Math.random()*100+'%';w.top=-(Math.random()*20+5)+'px';
-          w.background='hsl('+(260+Math.random()*30)+','+(55+Math.random()*20)+'%,'+ (60+Math.random()*15)+'%)';
-          w.animationDuration=(5+Math.random()*6)+'s';w.animationDelay=Math.random()*8+'s';
-          c.appendChild(b);
-        }
-      },
-    {
-      name:'二次元图',
-      cssClass:'bg-acgpic',
-      init:function(c){
-        // 动态插入 CSS 样式
-    var style=document.createElement('style');
-    style.textContent='.bg-acgpic{position:fixed;inset:0;z-index:0;overflow:hidden}.bg-acgpic::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:1;pointer-events:none}.bg-acgpic .acg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.5s ease;z-index:0}.bg-acgpic .acg-img.loaded{opacity:1}';
-    document.head.appendChild(style);
-    var img=document.createElement('img');
+        var style=document.createElement('style');
+        style.textContent='.bg-acgpic{position:fixed;inset:0;z-index:0;overflow:hidden}.bg-acgpic::before{content:";position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:1;pointer-events:none}.bg-acgpic .acg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.5s ease;z-index:0}.bg-acgpic .acg-img.loaded{opacity:1}';
+        document.head.appendChild(style);
+        var img=document.createElement('img');
         img.className='acg-img';
         img.alt='';
         img.loading='lazy';
-        // 避免缓存：加随机参数
-        var apiUrl='https://api.yppp.net/pc.php?return=json&_t='+Date.now()+'&_r='+Math.random().toFixed(8);
         img.onload=function(){img.classList.add('loaded')};
-        img.onerror=function(){
-          // 失败时用渐变兜底
-          c.style.background='linear-gradient(180deg,#0a0a1a,#1a1a3a,#0a0a1a)';
-        };
-        fetch(apiUrl)
-          .then(function(r){return r.json()})
-          .then(function(d){
-            if(d&&d.acgurl)img.src=d.acgurl;
-            else img.onerror();
-          })
-          .catch(function(){img.onerror()});
+        img.onerror=function(){c.style.background='linear-gradient(180deg,#0a0a1a,#1a1a3a,#0a0a1a)'};
+        img.src='https://api.yppp.net/api.php?_t='+Date.now()+'&_r='+Math.random().toFixed(8);
         c.appendChild(img);
       }
     },
@@ -655,8 +581,24 @@ q.addEventListener('input',function(){ucl();if(!busy&&!q.value.trim())rdd();else
 document.addEventListener('click',function(e){if(!hd.contains(e.target)&&e.target!==q)hd.classList.remove('show')});
 ucl();
 </script>
+
+<!-- Service Worker 离线支持 -->
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(function(e){console.log('SW注册失败:',e)});
+}
+</script>
+
+<!-- Service Worker 离线支持 -->
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(function(e){console.log('SW注册失败:',e)});
+}
+</script>
 </body>
 </html>`;
+
+
 
 
 

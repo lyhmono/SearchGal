@@ -29,15 +29,33 @@ function buildCORS(origin: string | null) {
   return headers;
 }
 
-// ===== 限流：内存版（重启会丢失，生产建议迁移到 KV）=====
+// ===== 限流：优先使用 KV 持久化（重启不丢失）=====
 const RATE_WIN = 60_000, RATE_MAX = 30;
-const limits = new Map<string, { n: number; at: number }>();
-function limited(ip: string) {
-  const t = Date.now(), e = limits.get(ip);
-  if (!e || t > e.at) { limits.set(ip, { n: 1, at: t + RATE_WIN }); return false; }
+const memLimits = new Map<string, { n: number; at: number }>();
+
+async function limited(env: Env, ip: string): Promise<boolean> {
+  if (env.SEARCHGAL_KV) {
+    const key = `ratelimit:${ip}`;
+    try {
+      const raw = await env.SEARCHGAL_KV.get(key, "json") as { n: number; at: number } | null;
+      const t = Date.now();
+      if (!raw || t > raw.at) {
+        await env.SEARCHGAL_KV.put(key, JSON.stringify({ n: 1, at: t + RATE_WIN }), { expirationTtl: 120 });
+        return false;
+      }
+      if (raw.n >= RATE_MAX) return true;
+      raw.n++;
+      await env.SEARCHGAL_KV.put(key, JSON.stringify(raw), { expirationTtl: 120 });
+      return false;
+    } catch {
+      // KV 失败，降级到内存
+    }
+  }
+  // 降级：内存限流
+  const t = Date.now(), e = memLimits.get(ip);
+  if (!e || t > e.at) { memLimits.set(ip, { n: 1, at: t + RATE_WIN }); return false; }
   if (e.n >= RATE_MAX) return true;
-  e.n++;
-  return false;
+  e.n++; return false;
 }
 
 // ===== 统一响应 =====
@@ -138,7 +156,11 @@ export default {
     // 搜索接口
     if (req.method === "POST") {
       const ip = req.headers.get("CF-Connecting-IP") || req.headers.get("X-Forwarded-For") || "";
-      if (limited(ip)) return err("请求过于频繁，请稍后再试", 429, origin);
+      if (await limited(env, ip)) {
+      const r = err("请求过于频繁，请稍后再试", 429, origin);
+      r.headers.set("Retry-After", "60");
+      return r;
+    }
       if (p === "/gal")    return handleSearch(req, ctx, PLATFORMS_GAL, env);
       if (p === "/patch") return handleSearch(req, ctx, PLATFORMS_PATCH, env);
     }
