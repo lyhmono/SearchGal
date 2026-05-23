@@ -584,19 +584,19 @@ ucl();
 
 <!-- Service Worker 离线支持 -->
 <script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/sw.js').catch(function(e){console.log('SW注册失败:',e)});
+);
 }
 </script>
 
 <!-- Service Worker 离线支持 -->
 <script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/sw.js').catch(function(e){console.log('SW注册失败:',e)});
+);
 }
 </script>
 </body>
 </html>`;
+
+
 
 
 
