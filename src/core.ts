@@ -1,4 +1,6 @@
 import type { Platform, PlatformSearchResult, StreamProgress, StreamResult } from "./types";
+import type { Env } from "./types";  // 从 types.ts 导入 Env
+
 import platformsGal from "./platforms/gal";
 import platformsPatch from "./platforms/patch";
 
@@ -87,9 +89,9 @@ export async function handleSearchRequestStream(
     const cached = await getCache(env, key);
     if (cached && Array.isArray(cached) && cached.length > 0) {
       console.log(JSON.stringify({ message: `缓存命中: ${game}`, level: "info" }));
-      // 重放缓存的 SSE 事件
+      // 重放缓存的 SSE 事件（直接序列化，不使用 fmt）
       for (const event of cached) {
-        await writer.write(enc.encode(fmt(event)));
+        await writer.write(enc.encode(JSON.stringify(event) + "\n"));
       }
       return; // 直接返回，无需实际搜索
     }
