@@ -13,7 +13,7 @@ ENVIRONMENT = "production"
 # 1. 在 Cloudflare Dashboard → KV 创建命名空间，获取 ID
 # 2. 取消注释下方，填入你的 namespace ID
 [[kv_namespaces]]
-binding = "searchgal-cache"
+binding = "SEARCHGAL_KV"
 id = "d547b4afb56146a09d29365560eaf530"
 
 # 如需创建 KV，运行：
