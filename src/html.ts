@@ -1,4 +1,4 @@
-// SearchGAL 前端 HTML - 优化版
+﻿// SearchGAL 前端 HTML - 优化版
 // 包含：Resource Hints、移动端优化、加载动画、深色模式切换、结果排序优化
 
 export const HTML = `<!DOCTYPE html>
@@ -20,32 +20,7 @@ export const HTML = `<!DOCTYPE html>
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%238b5cf6'/><stop offset='100%25' stop-color='%236366f1'/></linearGradient></defs><circle cx='50' cy='50' r='45' fill='url(%23g)' opacity='.1'/><text y='.7em' font-size='48' text-anchor='middle' fill='url(%23g)'>🔍</text></svg>">
 <style>
-:root{
-  --bg0:#0a0614;--bg1:#120c22;--bgc:rgba(255,255,255,0.04);--bgi:rgba(255,255,255,0.06);
-  --bd:rgba(255,255,255,0.07);--bdh:rgba(255,255,255,0.13);
-  --t:#ebe7f5;--t2:#9d95b5;--t3:#635d78;
-  --a:#818cf8;--a2:#a78bfa;--a3:#c084fc;--ag:rgba(129,140,248,0.18);
-  --l:#93b4f8;--e:#f87171;--s:#34d399;--w:#fbbf24;
-  --tag-g:rgba(52,211,153,0.13);--tag-gt:#6ee7b7;
-  --tag-a:rgba(251,191,36,0.13);--tag-at:#fcd34d;
-  --tag-x:rgba(255,255,255,0.06);--tag-xt:#9d95b5;
-  --tag-r:rgba(248,113,113,0.1);
-  --skb:rgba(255,255,255,0.035);--sks:rgba(255,255,255,0.09);
-  --sh:0 8px 30px rgba(0,0,0,0.35);--sg:0 8px 40px rgba(99,102,241,0.12);
-  --rs:8px;--r:14px;--rl:18px;--rf:999px;
-}
-@media(prefers-color-scheme:light){
-  :root{
-    --bg0:#f4f2fa;--bg1:#eae6f5;--bgc:rgba(255,255,255,0.5);--bgi:rgba(255,255,255,0.85);
-    --bd:rgba(0,0,0,0.06);--bdh:rgba(0,0,0,0.11);
-    --t:#1b1828;--t2:#5c5678;--t3:#a19bb5;--ag:rgba(99,102,241,0.08);
-    --l:#4f46e5;--e:#dc2626;
-    --tag-g:rgba(16,185,129,0.1);--tag-gt:#059669;
-    --tag-a:rgba(245,158,11,0.1);--tag-at:#d97706;
-    --tag-x:rgba(0,0,0,0.05);--tag-xt:#6b7280;
-    --skb:rgba(0,0,0,0.04);--sks:rgba(0,0,0,0.08);
-    --sh:0 8px 30px rgba(0,0,0,0.06);--sg:0 8px 40px rgba(99,102,241,0.04);
-  }
+:root{--bg0:#0a0614;--bg1:#120c22;--bgc:rgba(255,255,255,0.04);--bgi:rgba(255,255,255,0.06);--bd:rgba(255,255,255,0.07);--bdh:rgba(255,255,255,0.13);--t:#ebe7f5;--t2:#9d95b5;--t3:#635d78;--a:#818cf8;--a2:#a78bfa;--a3:#c084fc;--ag:rgba(129,140,248,0.18);--l:#93b4f8;--e:#f87171;--s:#34d399;--w:#fbbf24;--tag-g:rgba(52,211,153,0.13);--tag-gt:#6ee7b7;--tag-a:rgba(251,191,36,0.13);--tag-at:#fcd34d;--tag-x:rgba(255,255,255,0.06);--tag-xt:#9d95b5;--tag-r:rgba(248,113,113,0.1);--skb:rgba(255,255,255,0.035);--sks:rgba(255,255,255,0.09);--sh:0 8px 30px rgba(0,0,0,0.35);--sg:0 8px 40px rgba(99,102,241,0.12);--rs:8px;--r:14px;--rl:18px;--rf:999px;}[data-theme="dark"]:root{--bg0:#0a0614;--bg1:#120c22;--bgc:rgba(255,255,255,0.04);--bgi:rgba(255,255,255,0.06);--bd:rgba(255,255,255,0.07);--bdh:rgba(255,255,255,0.13);--t:#ebe7f5;--t2:#9d95b5;--t3:#635d78;--a:#818cf8;--a2:#a78bfa;--a3:#c084fc;--ag:rgba(129,140,248,0.18);--l:#93b4f8;--e:#f87171;--s:#34d399;--w:#fbbf24;--tag-g:rgba(52,211,153,0.13);--tag-gt:#6ee7b7;--tag-a:rgba(251,191,36,0.13);--tag-at:#fcd34d;--tag-x:rgba(255,255,255,0.06);--tag-xt:#9d95b5;--tag-r:rgba(248,113,113,0.1);--skb:rgba(255,255,255,0.035);--sks:rgba(255,255,255,0.09);--sh:0 8px 30px rgba(0,0,0,0.35);--sg:0 8px 40px rgba(99,102,241,0.12);--rs:8px;--r:14px;--rl:18px;--rf:999px;}@media(prefers-color-scheme:light){:root,[data-theme="auto"]:root{--bg0:#f4f2fa;--bg1:#eae6f5;--bgc:rgba(255,255,255,0.5);--bgi:rgba(255,255,255,0.85);--bd:rgba(0,0,0,0.06);--bdh:rgba(0,0,0,0.11);--t:#1b1828;--t2:#5c5678;--t3:#a19bb5;--ag:rgba(99,102,241,0.08);--l:#4f46e5;--e:#dc2626;--tag-g:rgba(16,185,129,0.1);--tag-gt:#059669;--tag-a:rgba(245,158,11,0.1);--tag-at:#d97706;--tag-x:rgba(0,0,0,0.05);--tag-xt:#6b7280;--skb:rgba(0,0,0,0.04);--sks:rgba(0,0,0,0.08);--sh:0 8px 30px rgba(0,0,0,0.06);--sg:0 8px 40px rgba(99,102,241,0.04)}}[data-theme="light"]:root{--bg0:#f4f2fa;--bg1:#eae6f5;--bgc:rgba(255,255,255,0.5);--bgi:rgba(255,255,255,0.85);--bd:rgba(0,0,0,0.06);--bdh:rgba(0,0,0,0.11);--t:#1b1828;--t2:#5c5678;--t3:#a19bb5;--ag:rgba(99,102,241,0.08);--l:#4f46e5;--e:#dc2626;--tag-g:rgba(16,185,129,0.1);--tag-gt:#059669;--tag-a:rgba(245,158,11,0.1);--tag-at:#d97706;--tag-x:rgba(0,0,0,0.05);--tag-xt:#6b7280;--skb:rgba(0,0,0,0.04);--sks:rgba(0,0,0,0.08);--sh:0 8px 30px rgba(0,0,0,0.06);--sg:0 8px 40px rgba(99,102,241,0.04)}
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
@@ -265,9 +240,9 @@ var m='gal',buf='',busy=false,t0=0,rc=0,ec=0,lt=0,tp=0,CD=2000,LM=8,HK='sgh',MH=
 // 深色模式切换
 var currentTheme=localStorage.getItem('theme')||'auto';
 function applyTheme(theme){
-  if(theme==='dark'){document.documentElement.style.setProperty('--force-dark','');document.documentElement.classList.add('dark')}
-  else if(theme==='light'){document.documentElement.style.setProperty('--force-dark','none');document.documentElement.classList.remove('dark')}
-  else{document.documentElement.style.removeProperty('--force-dark');document.documentElement.classList.remove('dark')}
+  if(theme==='dark'){document.documentElement.setAttribute('data-theme','dark')}
+  else if(theme==='light'){document.documentElement.setAttribute('data-theme','light')}
+  else {document.documentElement.removeAttribute('data-theme')}
   themeToggle.textContent=theme==='dark'?'🌞':theme==='light'?'🌙':'🌓';
   localStorage.setItem('theme',theme);
 }
@@ -409,3 +384,5 @@ ucl();
 </script>
 </body>
 </html>`;
+
+
