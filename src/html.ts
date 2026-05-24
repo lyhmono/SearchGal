@@ -234,10 +234,10 @@ body{
   var themes = [
     {
       name:'樱花',
-      cssClass:'bg-sakura',
+      cssClass:'bg-acgpic',
       init:function(c){
         var style=document.createElement('style');
-        style.textContent='.bg-acgpic{position:fixed;inset:0;z-index:0;overflow:hidden}.bg-acgpic::before{content:";position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:1;pointer-events:none}.bg-acgpic .acg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.5s ease;z-index:0}.bg-acgpic .acg-img.loaded{opacity:1}';
+        style.textContent='.bg-acgpic{position:fixed;inset:0;z-index:0;overflow:hidden}.bg-acgpic::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:1;pointer-events:none}.bg-acgpic .acg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.5s ease;z-index:0}.bg-acgpic .acg-img.loaded{opacity:1}';
         document.head.appendChild(style);
         var img=document.createElement('img');
         img.className='acg-img';
@@ -248,7 +248,6 @@ body{
         img.src='https://api.yppp.net/api.php?_t='+Date.now()+'&_r='+Math.random().toFixed(8);
         c.appendChild(img);
       }
-    },
     }
   ];
 
@@ -584,6 +583,7 @@ ucl();
 
 </body>
 </html>`;
+
 
 
 
