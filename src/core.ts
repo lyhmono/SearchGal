@@ -1,14 +1,14 @@
 import type { Platform, PlatformSearchResult, StreamProgress, StreamResult } from "./types";
-import type { Env } from "./types";
+import type { Env } from "./types";  // 从 types.ts 导入 Env
 
 import platformsGal from "./platforms/gal";
 import platformsPatch from "./platforms/patch";
 
-const PLATFORM_TIMEOUT_MS = 12_000;
-const CONCURRENCY = 6;
+const PLATFORM_TIMEOUT_MS = 12_000;  // Cloudflare 优化：12秒超时
+const CONCURRENCY = 6;             // Cloudflare 优化：6个并发
 const BREAKER_THRESHOLD = 3;
 const BREAKER_COOLDOWN = 120_000;
-const CACHE_TTL_SECONDS = 300;
+const CACHE_TTL_SECONDS = 300;     // 缓存5分钟
 
 // ── 熔断器 ──
 interface Breaker { failures: number; until: number; lastError: string }
@@ -49,33 +49,30 @@ async function eachLimit<T, R>(items: T[], fn: (item: T, i: number) => Promise<R
 // ── 核心搜索流 ──
 function fmt(data: object) { return JSON.stringify(data) + "\n"; }
 
+// 生成缓存 key
 function cacheKey(game: string, platformCount: number): string {
   return `search:${game.toLowerCase().trim()}:${platformCount}`;
 }
 
+// 尝试从 KV 读取缓存
 async function getCache(env: Env, key: string): Promise<object[] | null> {
   if (!env.SEARCHGAL_KV) return null;
-  try { return await env.SEARCHGAL_KV.get(key, "json") as object[] | null; } catch { return null; }
+  try {
+    const cached = await env.SEARCHGAL_KV.get(key, "json");
+    return cached as object[] | null;
+  } catch {
+    return null;
+  }
 }
 
+// 写入缓存
 async function setCache(env: Env, key: string, data: object[]): Promise<void> {
   if (!env.SEARCHGAL_KV) return;
-  try { await env.SEARCHGAL_KV.put(key, JSON.stringify(data), { expirationTtl: CACHE_TTL_SECONDS }); } catch (e) { console.error("Cache write failed:", e); }
-}
-
-// ── 相关性评分 ──
-function scoreItem(title: string, query: string): number {
-  const t = (title || "").toLowerCase();
-  const q = (query || "").toLowerCase().trim();
-  if (!t || !q) return 0;
-  if (t === q) return 100;
-  if (t.startsWith(q)) return 90;
-  if (t.includes(q)) return 70;
-  const qw = q.split(/\s+/).filter(Boolean);
-  let ws = 0;
-  for (const w of qw) { if (t.includes(w)) ws += 30; }
-  if (ws > 0) return Math.min(ws, 65);
-  return 10;
+  try {
+    await env.SEARCHGAL_KV.put(key, JSON.stringify(data), { expirationTtl: CACHE_TTL_SECONDS });
+  } catch (e) {
+    console.error("Cache write failed:", e);
+  }
 }
 
 export async function handleSearchRequestStream(
@@ -86,21 +83,26 @@ export async function handleSearchRequestStream(
   const enc = new TextEncoder();
   let done = 0;
 
-  // KV 缓存
+  // 检查 KV 缓存
   if (env?.SEARCHGAL_KV) {
     const key = cacheKey(game, platforms.length);
     const cached = await getCache(env, key);
     if (cached && Array.isArray(cached) && cached.length > 0) {
       console.log(JSON.stringify({ message: `缓存命中: ${game}`, level: "info" }));
-      for (const event of cached) { await writer.write(enc.encode(JSON.stringify(event) + "\n")); }
-      return;
+      // 重放缓存的 SSE 事件（直接序列化，不使用 fmt）
+      for (const event of cached) {
+        await writer.write(enc.encode(JSON.stringify(event) + "\n"));
+      }
+      return; // 直接返回，无需实际搜索
     }
   }
 
+  // 写锁
   let lock: Promise<void> = Promise.resolve();
   const collectedEvents: object[] = [];
   const wr = (d: object) => { collectedEvents.push(d); lock = lock.then(() => writer.write(enc.encode(fmt(d)))); return lock; };
 
+  // 标记熔断
   const items = platforms.map(p => ({ p, skip: isOpen(p.name) }));
   const total = items.length;
   await wr({ total });
@@ -118,49 +120,15 @@ export async function handleSearchRequestStream(
   await eachLimit(active, async (it) => {
     const p = it.p; const t0 = Date.now();
     try {
-      // 重试逻辑：失败时最多重试 1 次
-      let res: PlatformSearchResult | null = null;
-      let lastErr: string | null = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          res = await Promise.race([p.search(game), new Promise<PlatformSearchResult>((_, rj) => setTimeout(() => rj(new Error("超时")), PLATFORM_TIMEOUT_MS))]);
-          if (!res.error) break; // 成功，跳出重试
-          lastErr = res.error;
-          if (attempt < 1) await new Promise(r => setTimeout(r, 500)); // 失败等待 500ms 再重试
-        } catch (e) {
-          lastErr = e instanceof Error ? e.message : String(e);
-          if (attempt < 1) await new Promise(r => setTimeout(r, 500));
-        }
-      }
-      if (!res) {
-        // 两次都失败，构造错误结果
-        res = { items: [], count: 0, error: lastErr || "请求失败" };
-      }
+      const res = await Promise.race([p.search(game), new Promise<PlatformSearchResult>((_, rj) => setTimeout(() => rj(new Error("超时")), PLATFORM_TIMEOUT_MS))]);
       const ms = Date.now() - t0; done++;
-      if (res.error) {
-        fail(p.name, res.error);
-        console.log(JSON.stringify({ message: `${p.name} 错误(${ms}ms): ${res.error}`, level: "error" }));
-        await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: [], error: res.error } });
-      } else {
-        ok(p.name);
-        if (res.count > 0) {
-          console.log(JSON.stringify({ message: `${p.name} ${res.count}条(${ms}ms)`, level: "info" }));
-          const scoredItems = (res.items || []).map(it => ({ ...it, _score: scoreItem(it.title || it.name || "", game) }));
-          await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: scoredItems } });
-        } else {
-          await wr({ progress: { completed: done, total } });
-        }
-      }
-    } catch (e) {
-      done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e);
-      fail(p.name, msg);
-      console.log(JSON.stringify({ message: `${p.name} 异常(${ms}ms): ${msg}`, level: "error" }));
-      await wr({ progress: { completed: done, total } });
-    }
+      if (res.error) { fail(p.name, res.error); console.log(JSON.stringify({ message: `${p.name} 错误(${ms}ms): ${res.error}`, level: "error" })); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
+      else { ok(p.name); if (res.count > 0) { console.log(JSON.stringify({ message: `${p.name} ${res.count}条(${ms}ms)`, level: "info" })); await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } }); } else { await wr({ progress: { completed: done, total } }); } }
+    } catch (e) { done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); console.log(JSON.stringify({ message: `${p.name} 异常(${ms}ms): ${msg}`, level: "error" })); await wr({ progress: { completed: done, total } }); }
   }, CONCURRENCY);
 
   await wr({ done: true });
-
+  
   // 写入 KV 缓存
   if (env?.SEARCHGAL_KV && collectedEvents.length > 0) {
     const key = cacheKey(game, platforms.length);

@@ -1,10 +1,8 @@
 // 单个搜索结果
 export interface SearchResultItem {
   name: string;
-  title?: string;   // 显示标题（可选，默认用 name）
   url: string;
   tags?: string[];
-  _score?: number; // 相关性评分（内部使用）
 }
 
 // 平台搜索的返回值
