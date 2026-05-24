@@ -63,7 +63,7 @@ body{
 .bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.025;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:64px 64px}
 
 /* 二次元图片背景 */
-.bg-acg{position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;opacity:.2;z-index:-1;pointer-events:none;transition:opacity .5s}
+.bg-acg{position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;opacity:.35;z-index:-1;pointer-events:none;transition:opacity .5s;filter:brightness(1.1) contrast(1.05)}
 
 .app{position:relative;z-index:1;max-width:1160px;margin:0 auto;padding:clamp(1rem,3vw,2.5rem) clamp(.8rem,2.5vw,2rem) 5rem}
 .header{text-align:center;margin-bottom:clamp(1.2rem,3vw,2rem)}
@@ -271,7 +271,7 @@ icl.addEventListener('click',function(){q.value='';ucl();q.focus();clr()});
 // 背景图片加载
 function lb(){
   var img = $('bg-acg');
-  if(img) img.src = 'https://api.yppp.net/api.php?t=' + Date.now();
+  if(img) img.src = '/api/bg?t=' + Date.now();
 }
 lb(); // 初始加载
 

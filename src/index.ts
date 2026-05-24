@@ -83,6 +83,24 @@ export default {
       if (p === "/patch") return handleSearch(req, ctx, PLATFORMS_PATCH, env);
     }
 
+    // 背景图片代理（避免广告拦截器）
+    if (req.method === "GET" && p === "/api/bg") {
+      const t = u.searchParams.get("t") || Date.now().toString();
+      const apiUrl = "https://api.yppp.net/api.php?t=" + t;
+      try {
+        const resp = await fetch(apiUrl, { redirect: "follow" });
+        if (!resp.ok) throw new Error("API error: " + resp.status);
+        const headers = new Headers();
+        headers.set("Content-Type", resp.headers.get("Content-Type") || "image/*");
+        headers.set("Cache-Control", "public, max-age=3600");
+        headers.set("Access-Control-Allow-Origin", "*");
+        return new Response(resp.body, { status: 200, headers });
+      } catch (e) {
+        console.error("背景图片代理失败:", e);
+        return new Response("Not Found", { status: 404 });
+      }
+    }
+
     return new Response("Not Found", { status: 404 });
   },
 };
