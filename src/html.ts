@@ -47,6 +47,33 @@ export const HTML = `<!DOCTYPE html>
     --sh:0 8px 30px rgba(0,0,0,0.06);--sg:0 8px 40px rgba(99,102,241,0.04);
   }
 }
+/* 强制深色模式 */
+html.dark{
+  --bg0:#0a0614;--bg1:#120c22;--bgc:rgba(255,255,255,0.04);--bgi:rgba(255,255,255,0.06);
+  --bd:rgba(255,255,255,0.07);--bdh:rgba(255,255,255,0.13);
+  --t:#ebe7f5;--t2:#9d95b5;--t3:#635d78;
+  --a:#818cf8;--a2:#a78bfa;--a3:#c084fc;--ag:rgba(129,140,248,0.18);
+  --l:#93b4f8;--e:#f87171;--s:#34d399;--w:#fbbf24;
+  --tag-g:rgba(52,211,153,0.13);--tag-gt:#6ee7b7;
+  --tag-a:rgba(251,191,36,0.13);--tag-at:#fcd34d;
+  --tag-x:rgba(255,255,255,0.06);--tag-xt:#9d95b5;
+  --tag-r:rgba(248,113,113,0.1);
+  --skb:rgba(255,255,255,0.035);--sks:rgba(255,255,255,0.09);
+  --sh:0 8px 30px rgba(0,0,0,0.35);--sg:0 8px 40px rgba(99,102,241,0.12);
+  --rs:8px;--r:14px;--rl:18px;--rf:999px;
+}
+/* 强制浅色模式 */
+html.light{
+  --bg0:#f4f2fa;--bg1:#eae6f5;--bgc:rgba(255,255,255,0.5);--bgi:rgba(255,255,255,0.85);
+  --bd:rgba(0,0,0,0.06);--bdh:rgba(0,0,0,0.11);
+  --t:#1b1828;--t2:#5c5678;--t3:#a19bb5;--ag:rgba(99,102,241,0.08);
+  --l:#4f46e5;--e:#dc2626;
+  --tag-g:rgba(16,185,129,0.1);--tag-gt:#059669;
+  --tag-a:rgba(245,158,11,0.1);--tag-at:#d97706;
+  --tag-x:rgba(0,0,0,0.05);--tag-xt:#6b7280;
+  --skb:rgba(0,0,0,0.04);--sks:rgba(0,0,0,0.08);
+  --sh:0 8px 30px rgba(0,0,0,0.06);--sg:0 8px 40px rgba(99,102,241,0.04);
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
 body{
@@ -68,10 +95,6 @@ body{
 @keyframes ls{to{background-position:200% center}}
 .logo .ic{font-size:.75em;-webkit-text-fill-color:initial}
 .tagline{color:var(--t2);font-size:clamp(.82rem,1.8vw,.95rem);margin-top:.25rem}
-
-/* 深色模式切换按钮 */
-.theme-toggle{position:fixed;top:1rem;right:1rem;z-index:100;width:42px;height:42px;border-radius:50%;border:1px solid var(--bd);background:var(--bgc);backdrop-filter:blur(16px);color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transition:all .3s}
-.theme-toggle:hover{background:rgba(129,140,248,.1);color:var(--a);border-color:var(--a);transform:scale(1.05)}
 
 /* tabs */
 .tabs{display:inline-flex;gap:0;margin-bottom:.8rem;background:var(--bgc);border-radius:var(--rf);padding:3px;border:1px solid var(--bd)}
@@ -215,7 +238,6 @@ body{
   .cpbtn{opacity:.7;min-width:44px;min-height:44px}
   .b2t{width:38px;height:38px;bottom:1rem;right:.8rem}.pcount{font-size:.72rem}.kbd{display:none}
   .card{margin:0 -.3rem}
-  .theme-toggle{top:.5rem;right:.5rem;width:38px;height:38px;font-size:1rem}
 }
 @media(max-width:380px){.tab{padding:.35rem .8rem;font-size:.78rem}#q{font-size:.85rem}.tag{font-size:.65rem;padding:.12rem .4rem}}
 @media(hover:none){.cpbtn{opacity:.7}.card:hover{transform:none;box-shadow:none}.btn1:hover{transform:none}}
@@ -223,7 +245,6 @@ body{
 </head>
 <body>
 <div class="bg-aurora"></div><div class="bg-grid"></div>
-<button class="theme-toggle" id="themeToggle" aria-label="切换主题">🌓</button>
 <div class="app">
 <header class="header">
   <a class="logo" onclick="clr();document.getElementById('q').focus()"><span class="ic">🔍</span>SearchGAL</a>
@@ -258,26 +279,8 @@ body{
 <script>
 var $=function(id){return document.getElementById(id)};
 var sf=$('sf'),q=$('q'),sb=$('sb'),icl=$('icl'),hd=$('hd'),pf=$('pf'),pt=$('ptext'),
-    res=$('results'),sBar=$('sbar'),st=$('st'),toast=$('toast'),tmsg=$('tmsg'),ticon=$('ticon'),b2t=$('b2t'),
-    themeToggle=$('themeToggle');
+    res=$('results'),sBar=$('sbar'),st=$('st'),toast=$('toast'),tmsg=$('tmsg'),ticon=$('ticon'),b2t=$('b2t');
 var m='gal',buf='',busy=false,t0=0,rc=0,ec=0,lt=0,tp=0,CD=2000,LM=8,HK='sgh',MH=5,tt=null;
-
-// 深色模式切换
-var currentTheme=localStorage.getItem('theme')||'auto';
-function applyTheme(theme){
-  if(theme==='dark'){document.documentElement.style.setProperty('--force-dark','');document.documentElement.classList.add('dark')}
-  else if(theme==='light'){document.documentElement.style.setProperty('--force-dark','none');document.documentElement.classList.remove('dark')}
-  else{document.documentElement.style.removeProperty('--force-dark');document.documentElement.classList.remove('dark')}
-  themeToggle.textContent=theme==='dark'?'🌞':theme==='light'?'🌙':'🌓';
-  localStorage.setItem('theme',theme);
-}
-themeToggle.addEventListener('click',function(){
-  if(currentTheme==='auto')currentTheme='dark';
-  else if(currentTheme==='dark')currentTheme='light';
-  else currentTheme='auto';
-  applyTheme(currentTheme);
-});
-applyTheme(currentTheme);
 
 // tabs
 $('tabs').addEventListener('click',function(e){var t=e.target.closest('.tab');if(!t||busy)return;m=t.dataset.m;

@@ -60,7 +60,7 @@ export default {
 
     // 首页 HTML
     if (req.method === "GET" && (p === "/" || p === "/index.html")) {
-      const ck = new Request(u.origin + "/__html_v3", req), cache = caches.default;
+      const ck = new Request(u.origin + "/__html_v4", req), cache = caches.default;
       const hit = await cache.match(ck); if (hit) return hit;
       const r = new Response(HTML, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public,max-age=3600,s-maxage=86400", "CDN-Cache-Control": "public,max-age=86400", "Vary": "Accept-Encoding", "X-Content-Type-Options": "nosniff" } });
       ctx.waitUntil(cache.put(ck, r.clone())); return r;
