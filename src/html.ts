@@ -47,33 +47,6 @@ export const HTML = `<!DOCTYPE html>
     --sh:0 8px 30px rgba(0,0,0,0.06);--sg:0 8px 40px rgba(99,102,241,0.04);
   }
 }
-/* 强制深色模式 */
-html.dark{
-  --bg0:#0a0614;--bg1:#120c22;--bgc:rgba(255,255,255,0.04);--bgi:rgba(255,255,255,0.06);
-  --bd:rgba(255,255,255,0.07);--bdh:rgba(255,255,255,0.13);
-  --t:#ebe7f5;--t2:#9d95b5;--t3:#635d78;
-  --a:#818cf8;--a2:#a78bfa;--a3:#c084fc;--ag:rgba(129,140,248,0.18);
-  --l:#93b4f8;--e:#f87171;--s:#34d399;--w:#fbbf24;
-  --tag-g:rgba(52,211,153,0.13);--tag-gt:#6ee7b7;
-  --tag-a:rgba(251,191,36,0.13);--tag-at:#fcd34d;
-  --tag-x:rgba(255,255,255,0.06);--tag-xt:#9d95b5;
-  --tag-r:rgba(248,113,113,0.1);
-  --skb:rgba(255,255,255,0.035);--sks:rgba(255,255,255,0.09);
-  --sh:0 8px 30px rgba(0,0,0,0.35);--sg:0 8px 40px rgba(99,102,241,0.12);
-  --rs:8px;--r:14px;--rl:18px;--rf:999px;
-}
-/* 强制浅色模式 */
-html.light{
-  --bg0:#f4f2fa;--bg1:#eae6f5;--bgc:rgba(255,255,255,0.5);--bgi:rgba(255,255,255,0.85);
-  --bd:rgba(0,0,0,0.06);--bdh:rgba(0,0,0,0.11);
-  --t:#1b1828;--t2:#5c5678;--t3:#a19bb5;--ag:rgba(99,102,241,0.08);
-  --l:#4f46e5;--e:#dc2626;
-  --tag-g:rgba(16,185,129,0.1);--tag-gt:#059669;
-  --tag-a:rgba(245,158,11,0.1);--tag-at:#d97706;
-  --tag-x:rgba(0,0,0,0.05);--tag-xt:#6b7280;
-  --skb:rgba(0,0,0,0.04);--sks:rgba(0,0,0,0.08);
-  --sh:0 8px 30px rgba(0,0,0,0.06);--sg:0 8px 40px rgba(99,102,241,0.04);
-}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
 body{
@@ -88,6 +61,9 @@ body{
 @keyframes a1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(8vw,6vh) scale(1.15)}66%{transform:translate(-4vw,-4vh) scale(.9)}}
 @keyframes a2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-10vw,-8vh) scale(1.2)}}
 .bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.025;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:64px 64px}
+
+/* 二次元图片背景 */
+.bg-acg{position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;opacity:.2;z-index:-1;pointer-events:none;transition:opacity .5s}
 
 .app{position:relative;z-index:1;max-width:1160px;margin:0 auto;padding:clamp(1rem,3vw,2.5rem) clamp(.8rem,2.5vw,2rem) 5rem}
 .header{text-align:center;margin-bottom:clamp(1.2rem,3vw,2rem)}
@@ -245,6 +221,7 @@ body{
 </head>
 <body>
 <div class="bg-aurora"></div><div class="bg-grid"></div>
+<img id="bg-acg" class="bg-acg" alt="">
 <div class="app">
 <header class="header">
   <a class="logo" onclick="clr();document.getElementById('q').focus()"><span class="ic">🔍</span>SearchGAL</a>
@@ -290,6 +267,13 @@ $('tabs').addEventListener('click',function(e){var t=e.target.closest('.tab');if
 function ucl(){icl.classList.toggle('on',q.value.length>0)}
 q.addEventListener('input',ucl);
 icl.addEventListener('click',function(){q.value='';ucl();q.focus();clr()});
+
+// 背景图片加载
+function lb(){
+  var img = $('bg-acg');
+  if(img) img.src = 'https://api.yppp.net/api.php?t=' + Date.now();
+}
+lb(); // 初始加载
 
 // toast
 function toast(msg,icon){icon=icon||'✅';ticon.textContent=icon;tmsg.textContent=msg;toast.classList.add('show');clearTimeout(tt);tt=setTimeout(function(){toast.classList.remove('show')},2000)}
