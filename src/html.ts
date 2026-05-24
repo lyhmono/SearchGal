@@ -353,7 +353,7 @@ var $=function(id){return document.getElementById(id)};
       var li = document.createElement('li');
       li.dataset.score = it._score || 0;
       li.innerHTML = '<a href="'+it.url.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">'+it.title.replace(/</g,'&lt;')+'</a>'+
-        '<button class="cpbtn" onclick="cp(\''+it.url.replace(new RegExp("'", "g"),'\\'')+'\',this)" aria-label="复制链接">📋</button>';
+        '<button class="cpbtn" onclick="cp(\''+it.url.replace(/'/g,'\\'')+'\',this)" aria-label="复制链接">📋</button>';
       container.appendChild(li);
     });
   };
@@ -583,16 +583,3 @@ ucl();
 
 </body>
 </html>`;
-
-
-
-
-
-
-
-
-
-
-
-
-
