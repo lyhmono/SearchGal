@@ -18,6 +18,7 @@ export interface Platform {
   color: string;
   tags: string[];
   magic: boolean;
+  timeoutMs?: number;
   search: (game: string) => Promise<PlatformSearchResult>;
 }
 

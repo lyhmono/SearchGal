@@ -4,16 +4,27 @@ import { HTML } from "./html";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "86400",
 };
 
 const RATE_WIN = 60_000, RATE_MAX = 30;
 const limits = new Map<string, { n: number; at: number }>();
+let lastLimitSweep = 0;
+
 function limited(ip: string) {
-  const t = Date.now(), e = limits.get(ip);
-  if (!e || t > e.at) { limits.set(ip, { n: 1, at: t + RATE_WIN }); return false; }
+  const t = Date.now();
+  if (t - lastLimitSweep > RATE_WIN) {
+    lastLimitSweep = t;
+    for (const [key, value] of limits) {
+      if (t > value.at) limits.delete(key);
+    }
+  }
+
+  const key = ip || "unknown";
+  const e = limits.get(key);
+  if (!e || t > e.at) { limits.set(key, { n: 1, at: t + RATE_WIN }); return false; }
   if (e.n >= RATE_MAX) return true;
   e.n++;
   return false;
@@ -24,22 +35,41 @@ function j(body: object, st: number) {
 }
 function err(msg: string, st: number) { return j({ error: msg }, st); }
 
+async function parseGame(req: Request): Promise<string> {
+  const contentType = req.headers.get("Content-Type") || "";
+
+  if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
+    const form = await req.formData();
+    const value = form.get("game");
+    return typeof value === "string" ? value : "";
+  }
+
+  const text = await req.text();
+  if (contentType.includes("application/json")) {
+    const data = JSON.parse(text) as { game?: unknown };
+    return typeof data.game === "string" ? data.game : "";
+  }
+
+  const params = new URLSearchParams(text);
+  return params.get("game") || "";
+}
+
 // ═════════════════════════════════════════════
 //  Server
 // ═════════════════════════════════════════════
 
 async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform[], env: Env): Promise<Response> {
-  let game = "";
+  let game: string;
   try {
-    const text = await req.text();
-    const params = new URLSearchParams(text);
-    game = params.get("game") || "";
-    if (!game) { try { game = String(JSON.parse(text).game || ""); } catch {} }
+    game = await parseGame(req);
   } catch { return err("无法解析请求体", 400); }
   game = game.trim();
   if (!game) return err("请输入游戏名称", 400);
   if (game.length > 100) return err("关键词过长", 400);
-  game = game.replace(/[\x00-\x1F\x7F]/g, "");
+  game = Array.from(game).filter((char) => {
+    const code = char.charCodeAt(0);
+    return code > 0x1f && code !== 0x7f;
+  }).join("");
 
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();

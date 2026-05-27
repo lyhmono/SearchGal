@@ -1,5 +1,4 @@
-import type { Platform, PlatformSearchResult, StreamProgress, StreamResult } from "./types";
-import type { Env } from "./types";  // 从 types.ts 导入 Env
+import type { Env, Platform, PlatformSearchResult } from "./types";
 
 import platformsGal from "./platforms/gal";
 import platformsPatch from "./platforms/patch";
@@ -8,7 +7,8 @@ const PLATFORM_TIMEOUT_MS = 12_000;  // Cloudflare 优化：12秒超时
 const CONCURRENCY = 6;             // Cloudflare 优化：6个并发
 const BREAKER_THRESHOLD = 3;
 const BREAKER_COOLDOWN = 120_000;
-const CACHE_TTL_SECONDS = 300;     // 缓存5分钟
+const CACHE_TTL_RESULT_SECONDS = 1_800;
+const CACHE_TTL_EMPTY_SECONDS = 60;
 
 // ── 熔断器 ──
 interface Breaker { failures: number; until: number; lastError: string }
@@ -50,8 +50,32 @@ async function eachLimit<T, R>(items: T[], fn: (item: T, i: number) => Promise<R
 function fmt(data: object) { return JSON.stringify(data) + "\n"; }
 
 // 生成缓存 key
-function cacheKey(game: string, platformCount: number): string {
-  return `search:${game.toLowerCase().trim()}:${platformCount}`;
+function hashPlatformSet(platforms: Platform[]): string {
+  let hash = 5381;
+  for (const platform of platforms) {
+    const name = platform.name.toLowerCase();
+    for (let i = 0; i < name.length; i++) {
+      hash = ((hash << 5) + hash) ^ name.charCodeAt(i);
+    }
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function cacheKey(game: string, platforms: Platform[]): string {
+  return `search:v2:${hashPlatformSet(platforms)}:${game.toLowerCase().trim()}`;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("超时")), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
 }
 
 // 尝试从 KV 读取缓存
@@ -66,10 +90,10 @@ async function getCache(env: Env, key: string): Promise<object[] | null> {
 }
 
 // 写入缓存
-async function setCache(env: Env, key: string, data: object[]): Promise<void> {
+async function setCache(env: Env, key: string, data: object[], ttlSeconds: number): Promise<void> {
   if (!env.SEARCHGAL_KV) return;
   try {
-    await env.SEARCHGAL_KV.put(key, JSON.stringify(data), { expirationTtl: CACHE_TTL_SECONDS });
+    await env.SEARCHGAL_KV.put(key, JSON.stringify(data), { expirationTtl: ttlSeconds });
   } catch (e) {
     console.error("Cache write failed:", e);
   }
@@ -85,7 +109,7 @@ export async function handleSearchRequestStream(
 
   // 检查 KV 缓存
   if (env?.SEARCHGAL_KV) {
-    const key = cacheKey(game, platforms.length);
+    const key = cacheKey(game, platforms);
     const cached = await getCache(env, key);
     if (cached && Array.isArray(cached) && cached.length > 0) {
       console.log(JSON.stringify({ message: `缓存命中: ${game}`, level: "info" }));
@@ -100,6 +124,8 @@ export async function handleSearchRequestStream(
   // 写锁
   let lock: Promise<void> = Promise.resolve();
   const collectedEvents: object[] = [];
+  let hasResultItems = false;
+  let hasDegradedResult = false;
   const wr = (d: object) => { collectedEvents.push(d); lock = lock.then(() => writer.write(enc.encode(fmt(d)))); return lock; };
 
   // 标记熔断
@@ -111,6 +137,7 @@ export async function handleSearchRequestStream(
   for (const it of items) {
     if (!it.skip) continue;
     done++;
+    hasDegradedResult = true;
     const b = breakers.get(it.p.name);
     await wr({ progress: { completed: done, total }, result: { name: it.p.name, color: "#555", tags: [...it.p.tags, "breaker"], items: [], error: "已熔断 · " + (b?.lastError || "未知") } });
   }
@@ -120,20 +147,23 @@ export async function handleSearchRequestStream(
   await eachLimit(active, async (it) => {
     const p = it.p; const t0 = Date.now();
     try {
-      const res = await Promise.race([p.search(game), new Promise<PlatformSearchResult>((_, rj) => setTimeout(() => rj(new Error("超时")), PLATFORM_TIMEOUT_MS))]);
+      const res = await withTimeout<PlatformSearchResult>(p.search(game), p.timeoutMs ?? PLATFORM_TIMEOUT_MS);
       const ms = Date.now() - t0; done++;
-      if (res.error) { fail(p.name, res.error); console.log(JSON.stringify({ message: `${p.name} 错误(${ms}ms): ${res.error}`, level: "error" })); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
-      else { ok(p.name); if (res.count > 0) { console.log(JSON.stringify({ message: `${p.name} ${res.count}条(${ms}ms)`, level: "info" })); await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } }); } else { await wr({ progress: { completed: done, total } }); } }
-    } catch (e) { done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); console.log(JSON.stringify({ message: `${p.name} 异常(${ms}ms): ${msg}`, level: "error" })); await wr({ progress: { completed: done, total } }); }
+      if (res.error) { hasDegradedResult = true; fail(p.name, res.error); console.log(JSON.stringify({ message: `${p.name} 错误(${ms}ms): ${res.error}`, level: "error" })); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
+      else { ok(p.name); if (res.count > 0) { hasResultItems = true; console.log(JSON.stringify({ message: `${p.name} ${res.count}条(${ms}ms)`, level: "info" })); await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } }); } else { await wr({ progress: { completed: done, total } }); } }
+    } catch (e) { hasDegradedResult = true; done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); console.log(JSON.stringify({ message: `${p.name} 异常(${ms}ms): ${msg}`, level: "error" })); await wr({ progress: { completed: done, total } }); }
   }, CONCURRENCY);
 
   await wr({ done: true });
   
   // 写入 KV 缓存
-  if (env?.SEARCHGAL_KV && collectedEvents.length > 0) {
-    const key = cacheKey(game, platforms.length);
-    await setCache(env, key, collectedEvents);
-    console.log(JSON.stringify({ message: `已缓存: ${game}`, level: "info" }));
+  if (env?.SEARCHGAL_KV && collectedEvents.length > 0 && !hasDegradedResult) {
+    const key = cacheKey(game, platforms);
+    const ttlSeconds = hasResultItems ? CACHE_TTL_RESULT_SECONDS : CACHE_TTL_EMPTY_SECONDS;
+    await setCache(env, key, collectedEvents, ttlSeconds);
+    console.log(JSON.stringify({ message: `已缓存: ${game} (${ttlSeconds}s)`, level: "info" }));
+  } else if (hasDegradedResult) {
+    console.log(JSON.stringify({ message: `跳过缓存: ${game} (结果不完整)`, level: "warn" }));
   }
 }
 

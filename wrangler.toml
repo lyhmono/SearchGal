@@ -1,7 +1,8 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
+
 name = "searchgal"
 main = "src/index.ts"
-compatibility_date = "2025-04-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2026-05-27"
 
 [observability.logs]
 enabled = true
@@ -9,7 +10,7 @@ enabled = true
 [vars]
 ENVIRONMENT = "production"
 
-# KV 缓存 + 持久化熔断器
+# KV 缓存
 [[kv_namespaces]]
 binding = "SEARCHGAL_KV"
 id = "d547b4afb56146a09d29365560eaf530"
