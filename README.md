@@ -2,7 +2,7 @@
 
 # 🔍 SearchGal · Gal资源聚合搜索工具
 
-🚀 **极速响应** | 🌊 **SSE 流式传输** | 🎮 **32+ 平台聚合** | ☁️ **边缘部署**
+🚀 **极速响应** | 🌊 **SSE 流式传输** | 🎮 **40+ 平台聚合** | ☁️ **边缘部署**
 
 [前端项目](https://github.com/Moe-Sakura/frontend) • [在线预览](https://searchgal.top) • [快速部署](#-快速部署) • [API 文档](#-api-文档) • [开发者接入](#-开发者接入指南)
 
@@ -25,7 +25,7 @@
 | 特性 | 说明 |
 |:----:|------|
 | ✅ **多端适配** | PC/移动端完美适配，PC端支持展示游戏封面、介绍、标签 |
-| 💡 **多源聚合** | 实时聚合 **31+** Gal资源平台 + **2+** 补丁站 |
+| 💡 **多源聚合** | 实时聚合 **40+** Gal资源平台 + **2+** 补丁站 |
 | 🏷️ **智能标注** | 自动标注：🟢免登录 / 🟡需魔法 / ⚪特殊条件 |
 | ☁️ **边缘部署** | 支持 Cloudflare Workers / Vercel Edge 等平台 |
 | 🌊 **流式响应** | SSE 实时返回搜索结果，无需等待全部完成 |
@@ -40,7 +40,16 @@
 
 [![VNS](https://img.shields.io/badge/VNS-00C853)](https://gal.saop.cc/)
 [![真红小站](https://img.shields.io/badge/真红小站-00C853)](https://shinnku.com)
-[![TouchGal](https://img.shields.io/badge/TouchGal-00C853)](https://www.touchgal.us/)
+[![TouchGal](https://img.shields.io/badge/TouchGal-00C853)](https://www.touchgal.ink/)
+[![煌星游戏库](https://img.shields.io/badge/煌星游戏库-00C853)](https://galgames.vip/)
+[![山有木兮](https://img.shields.io/badge/山有木兮-FFC107)](https://symxyx.com/)
+[![牛头人游戏社](https://img.shields.io/badge/牛头人游戏社-00C853)](https://www.gamentr.com/)
+[![咪咔Game](https://img.shields.io/badge/咪咔Game-00C853)](https://game.mikiacg.org/)
+[![ACG游戏姬](https://img.shields.io/badge/ACG游戏姬-00C853)](https://acgyx.us/)
+[![二狗ACG](https://img.shields.io/badge/二狗ACG-00C853)](https://2gouacg.com/)
+[![Galgame大玩家](https://img.shields.io/badge/Galgame大玩家-00C853)](https://www.galgamedawanjia.com/)
+[![ACG港湾](https://img.shields.io/badge/ACG港湾-00C853)](https://www.acggw.me/)
+[![Loioy](https://img.shields.io/badge/Loioy-FFC107)](http://www.loioy.com/)
 [![Galgamex](https://img.shields.io/badge/Galgamex-00C853)](https://www.galgamex.net/)
 [![忧郁的loli](https://img.shields.io/badge/忧郁的loli-00C853)](https://www.ttloli.com/)
 [![GAL图书馆](https://img.shields.io/badge/GAL图书馆-00C853)](https://gallibrary.pw/)

@@ -3,6 +3,21 @@ import type { Platform, PlatformSearchResult, SearchResultItem } from "../../typ
 
 const API_URL = "https://www.touchgal.ink/api/search";
 const BASE_URL = "https://www.touchgal.ink/";
+let cachedCookie = "";
+let cachedCookieAt = 0;
+const COOKIE_TTL = 60 * 60 * 1000;
+
+async function getCookie(): Promise<string> {
+  if (cachedCookie && Date.now() - cachedCookieAt < COOKIE_TTL) {
+    return cachedCookie;
+  }
+
+  const response = await fetchClient(BASE_URL);
+  const setCookie = response.headers.get("set-cookie") || "";
+  cachedCookie = setCookie.split(";")[0];
+  cachedCookieAt = Date.now();
+  return cachedCookie;
+}
 
 async function searchTouchGal(game: string): Promise<PlatformSearchResult> {
   const searchResult: PlatformSearchResult = {
@@ -33,6 +48,10 @@ async function searchTouchGal(game: string): Promise<PlatformSearchResult> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Cookie": await getCookie(),
+        "Origin": BASE_URL.slice(0, -1),
+        "Referer": BASE_URL,
+        "X-Requested-With": "kun-fetch",
       },
       body: JSON.stringify(payload),
     });

@@ -4,13 +4,14 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const platformsDir = path.join(__dirname, '../src/platforms');
+const helperFiles = new Set(['htmlSearch.ts']);
 
 function generateIndexFile(directory) {
   const dirPath = path.join(platformsDir, directory);
   if (!fs.existsSync(dirPath)) return;
 
   const files = fs.readdirSync(dirPath)
-    .filter(file => file.endsWith('.ts') && file !== 'index.ts');
+    .filter(file => file.endsWith('.ts') && file !== 'index.ts' && !helperFiles.has(file));
 
   if (files.length === 0) return;
 
