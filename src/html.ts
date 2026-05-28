@@ -67,7 +67,7 @@ body{
 .logo .ic{font-size:.75em;-webkit-text-fill-color:initial}
 .tagline{color:var(--t2);font-size:clamp(.82rem,1.8vw,.95rem);margin-top:.25rem}
 
-.launcher{position:relative;max-width:760px;margin:0 auto 1.2rem;padding:1rem;border:1px solid var(--bd);border-radius:var(--r);background:linear-gradient(180deg,rgba(20,21,38,.58),rgba(12,13,26,.42));box-shadow:var(--sh);backdrop-filter:blur(22px);overflow:hidden}
+.launcher{position:relative;max-width:760px;margin:0 auto 1.2rem;padding:1rem;border:1px solid var(--bd);border-radius:var(--r);background:linear-gradient(180deg,rgba(20,21,38,.58),rgba(12,13,26,.42));box-shadow:var(--sh);backdrop-filter:blur(22px);overflow:visible}
 .launcher::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--a),var(--a2),var(--a3));opacity:.85}
 .launcher::after{content:'Gal资料终端';position:absolute;right:.9rem;top:.65rem;font-size:.68rem;color:var(--t3);pointer-events:none}
 
@@ -93,10 +93,11 @@ body{
 .iclear.on{display:flex}
 
 /* history */
-.hdrop{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:30;background:rgba(14,15,29,.88);backdrop-filter:blur(28px);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+.hdrop{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:80;max-height:min(280px,45vh);background:rgba(14,15,29,.9);backdrop-filter:blur(28px);border:1px solid var(--bd);border-radius:var(--r);overflow-x:hidden;overflow-y:auto;box-shadow:var(--sh)}
 .hdrop.show{display:block;animation:fs .2s ease-out}
 .hitem{padding:.65rem 1.1rem;cursor:pointer;font-size:.9rem;color:var(--t);border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;transition:background .15s}
 .hitem:hover{background:rgba(129,140,248,.06)}
+.hitem span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hitem .del{background:none;border:none;color:var(--t3);cursor:pointer;font-size:1rem;padding:.15rem .4rem;border-radius:4px;line-height:1;transition:all .15s}
 .hitem .del:hover{color:var(--e);background:rgba(248,113,113,.07)}
 .hclear{padding:.5rem;text-align:center;font-size:.78rem;color:var(--t3);cursor:pointer;border-top:1px solid var(--bd)}
