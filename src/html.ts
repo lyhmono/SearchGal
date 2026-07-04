@@ -6,7 +6,7 @@ export const HTML = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>SearchGAL · Gal资源聚合搜索</title>
 <meta name="description" content="聚合搜索33+ Gal资源平台，SSE流式返回">
 <meta name="theme-color" content="#0a0614">
@@ -244,6 +244,11 @@ body{
   .detail-body{padding:0}
 }
 @media(hover:none){.cpbtn{opacity:.7}.btn1:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  .pfill{transition:width .35s ease}
+  .detail.flash{animation:none}
+}
 </style>
 </head>
 <body>
@@ -281,7 +286,7 @@ body{
         <div class="ph-title">平台列表</div>
         <div class="ph-count" id="ph-count">等待搜索</div>
       </div>
-      <button class="ph-sort" id="ph-sort" title="切换排序">结果数↓</button>
+      <button class="ph-sort" id="ph-sort" title="切换排序" aria-label="切换排序方式，当前按结果数降序">结果数↓</button>
     </div>
     <div class="plist-body" id="plist-body">
       <div class="plist-empty"><span class="pe-icon">🔍</span>输入关键词开始搜索</div>
@@ -306,7 +311,10 @@ var sf=$('sf'),q=$('q'),sb=$('sb'),icl=$('icl'),hd=$('hd'),pf=$('pf'),pt=$('ptex
     detailEl=$('detail'),plistBody=$('plist-body'),phCount=$('ph-count'),phSort=$('ph-sort'),
     sBar=$('sbar'),st=$('st'),toast=$('toast'),tmsg=$('tmsg'),ticon=$('ticon'),b2t=$('b2t');
 var m='gal',buf='',busy=false,t0=0,rc=0,ec=0,lt=0,tp=0,CD=2000,LM=8,HK='sgh',MH=5,tt=null;
-var platforms=new Map(),selName=null,sortBy='count',total=0,done=0;
+var platforms=new Map(),selName=null,sortBy='count',total=0,done=0,noResult=false;
+
+// HTML 转义，防 XSS（item name/url 来自外部爬虫数据）
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
 // tabs
 $('tabs').addEventListener('click',function(e){var t=e.target.closest('.tab');if(!t||busy)return;m=t.dataset.m;
@@ -369,13 +377,13 @@ function scoreItem(name,query){
 
 // state
 function sbz(a){busy=a;sb.disabled=a;q.readOnly=a;
-  if(a){platforms.clear();selName=null;done=0;rc=0;ec=0;tp=0;total=0;renderPlist();renderDetail();pf.style.width='0%';pf.classList.remove('done');pt.textContent='搜索中...';sBar.style.display='none';t0=Date.now();hd.classList.remove('show');
+  if(a){platforms.clear();selName=null;noResult=false;done=0;rc=0;ec=0;tp=0;total=0;renderPlist();renderDetail();pf.style.width='0%';pf.classList.remove('done');pt.textContent='搜索中...';sBar.style.display='none';t0=Date.now();hd.classList.remove('show');
     var skHtml='';for(var i=0;i<5;i++){skHtml+='<div class="skel"><div class="skel-h"><div class="skel-d"></div><div class="skel-l w30"></div></div><div class="skel-l w70"></div><div class="skel-l w50"></div></div>'}
     plistBody.innerHTML=skHtml;
   }
   else{pf.classList.add('done');sBar.style.display='flex';ust()}}
 function ust(){var el=((Date.now()-t0)/1000).toFixed(1);st.innerHTML='<span class="sdot ok"></span>已搜 <b>'+rc+'</b> 平台'+(ec>0?' · <span class="sdot err"></span><b>'+ec+'</b> 错误':'')+' · '+el+'s'}
-window.clr=function(){platforms.clear();selName=null;renderPlist();renderDetail();sBar.style.display='none';pt.textContent='就绪';pf.style.width='0%';pf.classList.remove('done');tp=0;total=0;done=0;phCount.textContent='等待搜索'}
+window.clr=function(){platforms.clear();selName=null;noResult=false;renderPlist();renderDetail();sBar.style.display='none';pt.textContent='就绪';pf.style.width='0%';pf.classList.remove('done');tp=0;total=0;done=0;phCount.textContent='等待搜索'}
 
 // 渲染左侧平台列表
 function renderPlist(){
@@ -401,31 +409,43 @@ function renderPlist(){
     var numCls=cnt>0?'ok':(p.error?'err':'');
     var numTxt=p.error?'×':cnt;
     var meta='';
-    if(p.error)meta='<span class="pm-err">'+p.error.slice(0,24)+'</span>';
+    if(p.error)meta='<span class="pm-err">'+esc(p.error.slice(0,24))+'</span>';
     else if(cnt>0)meta='<span class="pm-ok">'+(p.tags?p.tags.slice(0,3).join(' · '):'')+'</span>';
     else meta='空结果';
-    var safeName=p.name.replace(/"/g,'&quot;');
-    html+='<div class="pitem'+(p.name===selName?' active':'')+'" data-name="'+safeName+'">'+
+    var safeName=esc(p.name);
+    var active=p.name===selName?' active':'';
+    html+='<div class="pitem'+active+'" data-name="'+safeName+'" tabindex="0" role="button" aria-label="'+safeName+(cnt>0?'，'+cnt+' 条结果':'')+'">'+
       '<span class="pdot '+dotCls+'"></span>'+
-      '<div class="pinfo"><div class="pname">'+p.name+'</div><div class="pmeta">'+meta+'</div></div>'+
+      '<div class="pinfo"><div class="pname">'+safeName+'</div><div class="pmeta">'+meta+'</div></div>'+
       '<span class="pcount-num '+numCls+'">'+numTxt+'</span></div>';
   });
   plistBody.innerHTML=html;
   phCount.textContent=done+'/'+total+' · '+rc+' 命中';
-  // 绑定点击
-  plistBody.querySelectorAll('.pitem').forEach(function(el){
-    el.addEventListener('click',function(){
-      selName=el.getAttribute('data-name');
-      renderPlist();renderDetail();
-      detailEl.classList.add('flash');setTimeout(function(){detailEl.classList.remove('flash')},350);
-      // 移动端：滚动到详情
-      if(window.innerWidth<860){detailEl.scrollIntoView({behavior:'smooth',block:'start'})}
-    });
-  });
+}
+
+// 事件委托：点击/键盘激活平台项
+plistBody.addEventListener('click',function(e){
+  var el=e.target.closest('.pitem');if(!el)return;
+  selectPlatform(el.getAttribute('data-name'));
+});
+plistBody.addEventListener('keydown',function(e){
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  var el=e.target.closest('.pitem');if(!el)return;
+  e.preventDefault();selectPlatform(el.getAttribute('data-name'));
+});
+
+function selectPlatform(name){
+  selName=name;renderPlist();renderDetail();
+  detailEl.classList.add('flash');setTimeout(function(){detailEl.classList.remove('flash')},350);
+  if(window.innerWidth<860){detailEl.scrollIntoView({behavior:'smooth',block:'start'})}
 }
 
 // 渲染右侧详情
 function renderDetail(){
+  if(noResult&&!selName){
+    detailEl.innerHTML='<div class="detail-empty"><span class="de-icon">📭</span><h3>没有找到相关资源</h3><p>试试缩短关键词，或使用中文名称</p></div>';
+    return;
+  }
   if(!selName){
     detailEl.innerHTML='<div class="detail-empty"><span class="de-icon">📚</span><h3>选择左侧平台查看详情</h3><p>搜索结果会实时填充到平台列表</p></div>';
     return;
@@ -436,12 +456,12 @@ function renderDetail(){
     return;
   }
   if(p.error){
-    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--e)"><span class="dcdot" style="background:var(--e)"></span><div class="dinfo"><div class="dname">'+p.name+'</div><div class="dsub">搜索失败</div></div><span class="dcount err">错误</span></div><div class="detail-body"><div class="detail-err"><span class="de-ico">⚠️</span>'+p.error+'</div></div>';
+    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--e)"><span class="dcdot" style="background:var(--e)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">搜索失败</div></div><span class="dcount err">错误</span></div><div class="detail-body"><div class="detail-err"><span class="de-ico">⚠️</span>'+esc(p.error)+'</div></div>';
     return;
   }
   if(!p.items||p.items.length===0){
-    var etags=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+t+'</span>'}).join(''):'';
-    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--t3)"><span class="dcdot" style="background:var(--t3)"></span><div class="dinfo"><div class="dname">'+p.name+'</div><div class="dsub">'+(p.tags?p.tags.join(' · '):'')+'</div></div><div class="dtags">'+etags+'</div><span class="dcount zero">0</span></div><div class="detail-body"><div class="detail-empty-msg">该平台无匹配结果</div></div>';
+    var etags=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+esc(t)+'</span>'}).join(''):'';
+    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--t3)"><span class="dcdot" style="background:var(--t3)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+(p.tags?p.tags.join(' · '):'')+'</div></div><div class="dtags">'+etags+'</div><span class="dcount zero">0</span></div><div class="detail-body"><div class="detail-empty-msg">该平台无匹配结果</div></div>';
     return;
   }
   // 按相关性排序
@@ -450,21 +470,21 @@ function renderDetail(){
     p.items.sort(function(a,b){return scoreItem(b.name,query)-scoreItem(a.name,query)});
   }
   var ca=p.color||'#888';
-  var tagsHtml=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+t+'</span>'}).join(''):'';
+  var tagsHtml=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+esc(t)+'</span>'}).join(''):'';
   var all=p.items;
   var expanded=p.expanded||all.length<=LM;
   var shown=expanded?all:all.slice(0,LM);
   var itemsHtml='';
   shown.forEach(function(it){
     var tmp=document.createElement('a');tmp.href=it.url;var host=tmp.hostname||'';
-    var safeUrl=it.url.replace(/"/g,'&quot;');
-    itemsHtml+='<li><a href="'+it.url+'" target="_blank" rel="noopener noreferrer">'+it.name+'</a><span class="rurl">'+host+'</span><button class="cpbtn" data-url="'+safeUrl+'">📋</button></li>';
+    var safeUrl=esc(it.url),safeName=esc(it.name),safeHost=esc(host);
+    itemsHtml+='<li><a href="'+safeUrl+'" target="_blank" rel="noopener noreferrer">'+safeName+'</a><span class="rurl">'+safeHost+'</span><button class="cpbtn" data-url="'+safeUrl+'" aria-label="复制链接">📋</button></li>';
   });
   var moreBtn='';
   if(all.length>LM){
     moreBtn=expanded?'<button class="more" id="dmore">收起 ▴</button>':'<button class="more" id="dmore">展开全部 '+all.length+' 条 ▾</button>';
   }
-  detailEl.innerHTML='<div class="detail-hd" style="--ca:'+ca+'"><span class="dcdot" style="background:'+ca+'"></span><div class="dinfo"><div class="dname">'+p.name+'</div><div class="dsub">'+all.length+' 条结果</div></div><div class="dtags">'+tagsHtml+'</div><span class="dcount">'+all.length+'</span></div><div class="detail-body"><ul class="rlist">'+itemsHtml+'</ul>'+moreBtn+'</div>';
+  detailEl.innerHTML='<div class="detail-hd" style="--ca:'+esc(ca)+'"><span class="dcdot" style="background:'+esc(ca)+'"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+all.length+' 条结果</div></div><div class="dtags">'+tagsHtml+'</div><span class="dcount">'+all.length+'</span></div><div class="detail-body"><ul class="rlist">'+itemsHtml+'</ul>'+moreBtn+'</div>';
   // 绑定复制按钮
   detailEl.querySelectorAll('.cpbtn').forEach(function(b){
     b.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();cp(b.getAttribute('data-url'),b)});
@@ -519,8 +539,10 @@ function finish(){
     var first=null;
     platforms.forEach(function(p){if(!first&&p.items&&p.items.length>0)first=p.name});
     if(first){selName=first;renderPlist();renderDetail()}
-    else if(platforms.size>0){
-      plistBody.innerHTML='<div class="plist-empty"><span class="pe-icon">📭</span>没有找到相关资源<p style="margin-top:.5rem;font-size:.8rem">试试缩短关键词，或使用中文名称</p></div>';
+    else{
+      // 全部无结果：保留左侧列表（让用户看到哪些平台响应了），右侧显示无结果提示
+      noResult=true;
+      renderDetail();
     }
   }
 }
