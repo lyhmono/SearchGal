@@ -39,5 +39,6 @@ export interface StreamProgress {
 // Cloudflare Workers 环境接口
 export interface Env {
   SEARCHGAL_KV?: KVNamespace;
+  SEARCHGAL_RATELIMIT?: RateLimit;
   [k: string]: unknown;
 }

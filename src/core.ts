@@ -8,7 +8,7 @@ const CONCURRENCY = 6;             // Cloudflare 优化：6个并发
 const BREAKER_THRESHOLD = 3;
 const BREAKER_COOLDOWN = 120_000;
 const CACHE_TTL_RESULT_SECONDS = 1_800;
-const CACHE_TTL_EMPTY_SECONDS = 60;
+const CACHE_TTL_EMPTY_SECONDS = 600;
 
 // ── 熔断器 ──
 interface Breaker { failures: number; until: number; lastError: string }
@@ -101,7 +101,7 @@ async function setCache(env: Env, key: string, data: object[], ttlSeconds: numbe
 
 export async function handleSearchRequestStream(
   game: string, platforms: Platform[], writer: WritableStreamDefaultWriter<Uint8Array>,
-  env?: Env
+  env?: Env, ctx?: ExecutionContext
 ): Promise<void> {
   console.log(JSON.stringify({ message: `搜索: ${game}`, level: "info" }));
   const enc = new TextEncoder();
@@ -156,11 +156,16 @@ export async function handleSearchRequestStream(
 
   await wr({ done: true });
   
-  // 写入 KV 缓存
+  // 写入 KV 缓存（用 ctx.waitUntil 异步写入，不阻塞响应返回）
   if (env?.SEARCHGAL_KV && collectedEvents.length > 0 && !hasDegradedResult) {
     const key = cacheKey(game, platforms);
     const ttlSeconds = hasResultItems ? CACHE_TTL_RESULT_SECONDS : CACHE_TTL_EMPTY_SECONDS;
-    await setCache(env, key, collectedEvents, ttlSeconds);
+    const cachePromise = setCache(env, key, collectedEvents, ttlSeconds);
+    if (ctx) {
+      ctx.waitUntil(cachePromise);
+    } else {
+      await cachePromise;
+    }
     console.log(JSON.stringify({ message: `已缓存: ${game} (${ttlSeconds}s)`, level: "info" }));
   } else if (hasDegradedResult) {
     console.log(JSON.stringify({ message: `跳过缓存: ${game} (结果不完整)`, level: "warn" }));

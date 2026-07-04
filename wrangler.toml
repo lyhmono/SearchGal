@@ -4,6 +4,10 @@ name = "searchgal"
 main = "src/index.ts"
 compatibility_date = "2026-05-27"
 
+# 智能放置：自动选择离用户近的数据中心执行，降低跨区延迟
+[placement]
+mode = "smart"
+
 [observability.logs]
 enabled = true
 
@@ -16,3 +20,11 @@ binding = "SEARCHGAL_KV"
 id = "d547b4afb56146a09d29365560eaf530"
 # 如需预览环境使用不同 KV，取消注释下方并创建预览命名空间
 # preview_id = "你的预览环境_KV_ID"
+
+# 限流：分布式生效，跨所有 Worker 实例共享计数
+# 30 次/60秒 每 IP
+[[unsafe.bindings]]
+name = "SEARCHGAL_RATELIMIT"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 30, period = 60 }

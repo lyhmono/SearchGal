@@ -13,7 +13,8 @@ const RATE_WIN = 60_000, RATE_MAX = 30;
 const limits = new Map<string, { n: number; at: number }>();
 let lastLimitSweep = 0;
 
-function limited(ip: string) {
+// 内存限流 fallback（当没有 SEARCHGAL_RATELIMIT binding 时使用，如 Vercel/Netlify）
+function limitedMemory(ip: string) {
   const t = Date.now();
   if (t - lastLimitSweep > RATE_WIN) {
     lastLimitSweep = t;
@@ -28,6 +29,15 @@ function limited(ip: string) {
   if (e.n >= RATE_MAX) return true;
   e.n++;
   return false;
+}
+
+// 统一限流入口：优先用 CF Rate Limiting binding（分布式），否则 fallback 到内存
+async function limited(ip: string, env: Env): Promise<boolean> {
+  if (env.SEARCHGAL_RATELIMIT) {
+    const { success } = await env.SEARCHGAL_RATELIMIT.limit({ key: ip || "unknown" });
+    return !success;
+  }
+  return limitedMemory(ip);
 }
 
 function j(body: object, st: number) {
@@ -75,7 +85,7 @@ async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform
   const w = writable.getWriter();
   const enc = new TextEncoder();
   ctx.waitUntil(
-    handleSearchRequestStream(game, plats, w, env)
+    handleSearchRequestStream(game, plats, w, env, ctx)
       .catch((e) => { console.error("Stream err:", e); w.write(enc.encode(JSON.stringify({ error: "搜索出错", done: true }) + "\n")).catch(() => {}); })
       .finally(() => w.close().catch(() => {}))
   );
@@ -88,10 +98,11 @@ export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const u = new URL(req.url), p = u.pathname;
 
-    // 首页 HTML
+    // 首页 HTML（启用 Cache API，命中时直接返回缓存的 Response，省去重复序列化）
     if (req.method === "GET" && (p === "/" || p === "/index.html")) {
       const ck = new Request(u.origin + "/__html_v4", req), cache = caches.default;
-      // const hit = await cache.match(ck); if (hit) return hit; // 禁用缓存
+      const hit = await cache.match(ck);
+      if (hit) return hit;
       const r = new Response(HTML, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "CDN-Cache-Control": "no-cache", "Vary": "Accept-Encoding", "X-Content-Type-Options": "nosniff" } });
       ctx.waitUntil(cache.put(ck, r.clone())); return r;
     }
@@ -108,14 +119,19 @@ export default {
     // 搜索接口
     if (req.method === "POST") {
       const ip = req.headers.get("CF-Connecting-IP") || req.headers.get("X-Forwarded-For") || "";
-      if (limited(ip)) return err("请求过于频繁", 429);
+      if (await limited(ip, env)) return err("请求过于频繁", 429);
       if (p === "/gal") return handleSearch(req, ctx, PLATFORMS_GAL, env);
       if (p === "/patch") return handleSearch(req, ctx, PLATFORMS_PATCH, env);
     }
 
-    // 背景图片代理（避免广告拦截器）
+    // 背景图片代理（避免广告拦截器）+ Cache API 按小时缓存
     if (req.method === "GET" && p === "/api/bg") {
       const t = u.searchParams.get("t") || Date.now().toString();
+      const hourBucket = Math.floor(Date.now() / 3_600_000);
+      const cacheKey = new Request(u.origin + "/__bg_" + hourBucket, req);
+      const cache = caches.default;
+      const hit = await cache.match(cacheKey);
+      if (hit) return hit;
       const apiUrl = "https://api.yppp.net/api.php?t=" + t;
       try {
         const resp = await fetch(apiUrl, { redirect: "follow" });
@@ -124,7 +140,9 @@ export default {
         headers.set("Content-Type", resp.headers.get("Content-Type") || "image/*");
         headers.set("Cache-Control", "public, max-age=3600");
         headers.set("Access-Control-Allow-Origin", "*");
-        return new Response(resp.body, { status: 200, headers });
+        const r = new Response(resp.body, { status: 200, headers });
+        ctx.waitUntil(cache.put(cacheKey, r.clone()));
+        return r;
       } catch (e) {
         console.error("背景图片代理失败:", e);
         return new Response("Not Found", { status: 404 });
