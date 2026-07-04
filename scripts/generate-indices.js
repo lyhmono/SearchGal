@@ -15,6 +15,9 @@ const DISABLED = {
     BiAnXingLu: '源站返回 521（Cloudflare 回源失败），站点已宕机，故停用',
     LiSiTanACG: '已迁站 singureo.com 并改为 SPA 客户端搜索，原 search.xml 索引下线，无可调用接口，故停用',
     QingJiACG: '全站 Cloudflare 人机质询，所有 UA 均被拦截，无法抓取，故停用',
+    GalgameDaWanJia: 'TLS 证书 CN=cp.huyuncdn.com 不匹配域名（ERR_TLS_CERT_ALTNAME_INVALID），站长证书配错，故停用',
+    GalgameX: '站点改版为 Next.js SPA，.top→.net 重定向后 /api/search 返回 404，旧 API 下线，故停用',
+    YouYuDeloli: 'SSL 证书过期（CERT_HAS_EXPIRED），等站长续证后可恢复，暂停用',
   },
   patch: {},
 };

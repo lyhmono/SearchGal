@@ -1,7 +1,7 @@
 import { fetchClient } from "../../utils/httpClient";
 import type { Platform, PlatformSearchResult, SearchResultItem } from "../../types";
 
-const BASE_URL = "https://galzy.eu.org";
+const BASE_URL = "https://galzy.moe";
 
 async function searchZiYuanShe(game: string): Promise<PlatformSearchResult> {
   const searchResult: PlatformSearchResult = {

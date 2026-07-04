@@ -6,8 +6,8 @@ import ACGYouXiJi from "./ACGYouXiJi";
 import DaoHeGal from "./DaoHeGal";
 import ErGouACG from "./ErGouACG";
 import FuFuACG from "./FuFuACG";
-import GalgameDaWanJia from "./GalgameDaWanJia";
-import GalgameX from "./GalgameX";
+// import GalgameDaWanJia from "./GalgameDaWanJia"; // 已禁用：TLS 证书 CN=cp.huyuncdn.com 不匹配域名（ERR_TLS_CERT_ALTNAME_INVALID），站长证书配错，故停用
+// import GalgameX from "./GalgameX"; // 已禁用：站点改版为 Next.js SPA，.top→.net 重定向后 /api/search 返回 404，旧 API 下线，故停用
 import GalTuShuGuan from "./GalTuShuGuan";
 import GameNTR from "./GameNTR";
 // import GGBases from "./GGBases"; // 已禁用：openresty WAF 按 searchgal UA 屏蔽，换 UA 即绕过站长主动屏蔽，故停用
@@ -34,7 +34,7 @@ import VNS from "./VNS";
 import WeiZhiYunPan from "./WeiZhiYunPan";
 import xxacg from "./xxacg";
 import YingZhiGuang from "./YingZhiGuang";
-import YouYuDeloli from "./YouYuDeloli";
+// import YouYuDeloli from "./YouYuDeloli"; // 已禁用：SSL 证书过期（CERT_HAS_EXPIRED），等站长续证后可恢复，暂停用
 import YueYao from "./YueYao";
 import ZeroFive from "./ZeroFive";
 import ZhenHongXiaoZhan from "./ZhenHongXiaoZhan";
@@ -49,8 +49,8 @@ const platforms: Platform[] = [
   DaoHeGal,
   ErGouACG,
   FuFuACG,
-  GalgameDaWanJia,
-  GalgameX,
+  // GalgameDaWanJia, // 已禁用
+  // GalgameX, // 已禁用
   GalTuShuGuan,
   GameNTR,
   // GGBases, // 已禁用
@@ -77,7 +77,7 @@ const platforms: Platform[] = [
   WeiZhiYunPan,
   xxacg,
   YingZhiGuang,
-  YouYuDeloli,
+  // YouYuDeloli, // 已禁用
   YueYao,
   ZeroFive,
   ZhenHongXiaoZhan,
