@@ -333,7 +333,7 @@ q.addEventListener('input',ucl);
 icl.addEventListener('click',function(){q.value='';ucl();q.focus();clr()});
 
 // 背景图片加载（保留动态二次元背景）
-function lb(){var img=$('bg-acg');if(img)img.src='/api/bg?t='+Date.now()}
+function lb(){var img=$('bg-acg');if(img){img.onerror=function(){img.style.display='none'};img.src='/api/bg?t='+Date.now()}}
 lb();
 
 // toast
@@ -350,7 +350,7 @@ function sh(kw){var h=gh();h=[kw].concat(h.filter(function(k){return k!==kw})).s
 function rh(kw,e){e.stopPropagation();var h=gh().filter(function(k){return k!==kw});try{localStorage.setItem(HK,JSON.stringify(h))}catch(e){};rdd()}
 function cah(){try{localStorage.removeItem(HK)}catch(e){};rdd()}
 function rdd(){var h=gh();if(!h.length){hd.classList.remove('show');return}
-  var html='';h.forEach(function(kw){html+='<div class="hitem" data-k="'+kw.replace(/"/g,'&quot;')+'"><span>'+kw+'</span><button class="del" data-d="'+kw.replace(/"/g,'&quot;')+'">&times;</button></div>'});
+  var html='';h.forEach(function(kw){var safeKw=esc(kw);html+='<div class="hitem" data-k="'+safeKw+'"><span>'+safeKw+'</span><button class="del" data-d="'+safeKw+'" aria-label="删除">&times;</button></div>'});
   html+='<div class="hclear">清除全部历史</div>';hd.innerHTML=html;hd.classList.add('show');
   hd.querySelectorAll('.hitem').forEach(function(el){el.addEventListener('click',function(){q.value=el.getAttribute('data-k');ucl();hd.classList.remove('show');sf.dispatchEvent(new Event('submit'))})});
   hd.querySelectorAll('.del').forEach(function(b){b.addEventListener('click',function(e){rh(b.getAttribute('data-d'),e)})});
@@ -452,7 +452,7 @@ function renderDetail(){
   }
   var p=platforms.get(selName);
   if(!p){
-    detailEl.innerHTML='<div class="detail-empty"><span class="de-icon">⏳</span><h3>'+selName+'</h3><p>正在搜索…</p></div>';
+    detailEl.innerHTML='<div class="detail-empty"><span class="de-icon">⏳</span><h3>'+esc(selName)+'</h3><p>正在搜索…</p></div>';
     return;
   }
   if(p.error){
@@ -461,7 +461,7 @@ function renderDetail(){
   }
   if(!p.items||p.items.length===0){
     var etags=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+esc(t)+'</span>'}).join(''):'';
-    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--t3)"><span class="dcdot" style="background:var(--t3)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+(p.tags?p.tags.join(' · '):'')+'</div></div><div class="dtags">'+etags+'</div><span class="dcount zero">0</span></div><div class="detail-body"><div class="detail-empty-msg">该平台无匹配结果</div></div>';
+    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--t3)"><span class="dcdot" style="background:var(--t3)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+(p.tags?p.tags.map(esc).join(' · '):'')+'</div></div><div class="dtags">'+etags+'</div><span class="dcount zero">0</span></div><div class="detail-body"><div class="detail-empty-msg">该平台无匹配结果</div></div>';
     return;
   }
   // 按相关性排序
@@ -470,6 +470,8 @@ function renderDetail(){
     p.items.sort(function(a,b){return scoreItem(b.name,query)-scoreItem(a.name,query)});
   }
   var ca=p.color||'#888';
+  // 校验 color 格式，防 CSS 注入（只允许 #hex / 命名色 / var()）
+  if(!/^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+|var\(--[a-z0-9-]+\))$/.test(ca))ca='#888';
   var tagsHtml=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+esc(t)+'</span>'}).join(''):'';
   var all=p.items;
   var expanded=p.expanded||all.length<=LM;
@@ -500,14 +502,17 @@ function renderDetail(){
 }
 
 // submit
+var abortCtrl=null;
 sf.addEventListener('submit',function(e){
   e.preventDefault();var kw=q.value.trim();if(!kw||busy)return;var n=Date.now();if(n-lt<CD)return;lt=n;sbz(true);sh(kw);
-  fetch('/'+m,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'game='+encodeURIComponent(kw)}).then(function(r){
+  if(abortCtrl)abortCtrl.abort();
+  abortCtrl=new AbortController();
+  fetch('/'+m,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'game='+encodeURIComponent(kw),signal:abortCtrl.signal}).then(function(r){
     if(!r.ok)return r.json().then(function(err){throw new Error(err.error||'搜索失败('+r.status+')')});
     var rd=r.body.getReader(),dc=new TextDecoder();buf='';
     function pump(){return rd.read().then(function(v){if(v.value){buf+=dc.decode(v.value,{stream:true});var ls=buf.split('\\n');buf=ls.pop()||'';ls.forEach(function(l){if(!l.trim())return;try{pm(JSON.parse(l))}catch(e){}})}
       if(v.done){if(buf.trim())try{pm(JSON.parse(buf))}catch(e){}finish();return}return pump()})}return pump()})
-  .catch(function(err){plistBody.innerHTML='<div class="plist-empty"><span class="pe-icon">⚠️</span>'+err.message+'</div>';pt.textContent='失败';sbz(false)})
+  .catch(function(err){if(err.name==='AbortError')return;plistBody.innerHTML='<div class="plist-empty"><span class="pe-icon">⚠️</span>'+esc(err.message)+'</div>';pt.textContent='失败';sbz(false)})
 });
 
 function pm(d){
