@@ -24,3 +24,6 @@ package-lock.json
 .claude
 
 .history
+# preview files
+preview.html
+build-preview.mjs
