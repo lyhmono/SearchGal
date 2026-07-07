@@ -316,6 +316,13 @@ var platforms=new Map(),selName=null,sortBy='count',total=0,done=0,noResult=fals
 // HTML 转义，防 XSS（item name/url 来自外部爬虫数据）
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
+// URL 协议白名单，防 javascript:/data:/vbscript: 等危险协议 XSS（Gal 下载常用 http/https/magnet/ed2k）
+function safeUrl(u){
+  try{var a=document.createElement('a');a.href=u;var p=(a.protocol||'').toLowerCase();
+    if(p==='http:'||p==='https:'||p==='magnet:'||p==='ed2k:')return u}catch(e){}
+  return '#';
+}
+
 // tabs
 $('tabs').addEventListener('click',function(e){var t=e.target.closest('.tab');if(!t||busy)return;m=t.dataset.m;
   this.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});t.classList.add('on');clr();q.focus()});
@@ -410,7 +417,7 @@ function renderPlist(){
     var numTxt=p.error?'×':cnt;
     var meta='';
     if(p.error)meta='<span class="pm-err">'+esc(p.error.slice(0,24))+'</span>';
-    else if(cnt>0)meta='<span class="pm-ok">'+(p.tags?p.tags.slice(0,3).join(' · '):'')+'</span>';
+    else if(cnt>0)meta='<span class="pm-ok">'+(p.tags?p.tags.slice(0,3).map(esc).join(' · '):'')+'</span>';
     else meta='空结果';
     var safeName=esc(p.name);
     var active=p.name===selName?' active':'';
@@ -478,9 +485,11 @@ function renderDetail(){
   var shown=expanded?all:all.slice(0,LM);
   var itemsHtml='';
   shown.forEach(function(it){
-    var tmp=document.createElement('a');tmp.href=it.url;var host=tmp.hostname||'';
-    var safeUrl=esc(it.url),safeName=esc(it.name),safeHost=esc(host);
-    itemsHtml+='<li><a href="'+safeUrl+'" target="_blank" rel="noopener noreferrer">'+safeName+'</a><span class="rurl">'+safeHost+'</span><button class="cpbtn" data-url="'+safeUrl+'" aria-label="复制链接">📋</button></li>';
+    var raw=it.url||'';
+    var href=safeUrl(raw);
+    var tmp=document.createElement('a');tmp.href=raw;var host=tmp.hostname||'';
+    var uHtml=esc(href),nHtml=esc(it.name),hHtml=esc(host);
+    itemsHtml+='<li><a href="'+uHtml+'" target="_blank" rel="noopener noreferrer">'+nHtml+'</a><span class="rurl">'+hHtml+'</span><button class="cpbtn" data-url="'+uHtml+'" aria-label="复制链接">📋</button></li>';
   });
   var moreBtn='';
   if(all.length>LM){
