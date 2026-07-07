@@ -268,7 +268,10 @@ export default {
       }
       if (!results) {
         results = await runPlatformsCollect(game, subset, env);
-        if (env?.SEARCHGAL_KV && subset.length > 0) {
+        // 与 SSE 路径一致：整批一个有效结果都没有（全是错误）时不写缓存，
+        // 避免把失败结果冻结 30 分钟、且让失败平台能被重试。
+        const hasItem = results.some((r) => Array.isArray(r.items) && r.items.length > 0);
+        if (env?.SEARCHGAL_KV && subset.length > 0 && hasItem) {
           await setCache(env, cacheKey(game, subset), results, CACHE_TTL_RESULT_SECONDS);
         }
       }

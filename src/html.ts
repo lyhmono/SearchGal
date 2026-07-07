@@ -438,7 +438,7 @@ function renderPlist(){
     else if(cnt>0)meta='<span class="pm-ok">'+(p.tags?p.tags.slice(0,3).map(esc).join(' · '):'')+'</span>';
     else meta='空结果';
     var safeName=esc(p.name);
-    var cacheBadge=p.cached?'<span class="pcache" title="结果来自 KV 缓存，秒回">⚡</span>':'';
+    var cacheBadge=(p.cached&&!p.error)?'<span class="pcache" title="结果来自 KV 缓存，秒回">⚡</span>':'';
     var active=p.name===selName?' active':'';
     html+='<div class="pitem'+active+'" data-name="'+safeName+'" tabindex="0" role="button" aria-label="'+safeName+(cnt>0?'，'+cnt+' 条结果':'')+(p.cached?'，缓存命中':'')+'">'+
       '<span class="pdot '+dotCls+'"></span>'+
@@ -482,12 +482,12 @@ function renderDetail(){
     return;
   }
   if(p.error){
-    var cBadge=(p.cached?'<div class="dcache">⚡ 缓存命中</div>':'');
+    var cBadge=(p.cached&&!p.error?'<div class="dcache">⚡ 缓存命中</div>':'');
     detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--e)"><span class="dcdot" style="background:var(--e)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">搜索失败</div>'+cBadge+'</div><span class="dcount err">错误</span></div><div class="detail-body"><div class="detail-err"><span class="de-ico">⚠️</span>'+esc(p.error)+'</div></div>';
     return;
   }
   if(!p.items||p.items.length===0){
-    var cBadge2=(p.cached?'<div class="dcache">⚡ 缓存命中</div>':'');
+    var cBadge2=(p.cached&&!p.error?'<div class="dcache">⚡ 缓存命中</div>':'');
     var etags=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+esc(t)+'</span>'}).join(''):'';
     detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--t3)"><span class="dcdot" style="background:var(--t3)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+(p.tags?p.tags.map(esc).join(' · '):'')+'</div>'+cBadge2+'</div><div class="dtags">'+etags+'</div><span class="dcount zero">0</span></div><div class="detail-body"><div class="detail-empty-msg">该平台无匹配结果</div></div>';
     return;
@@ -516,7 +516,7 @@ function renderDetail(){
   if(all.length>LM){
     moreBtn=expanded?'<button class="more" id="dmore">收起 ▴</button>':'<button class="more" id="dmore">展开全部 '+all.length+' 条 ▾</button>';
   }
-  var cBadge3=(p.cached?'<div class="dcache">⚡ 缓存命中</div>':'');
+  var cBadge3=(p.cached&&!p.error?'<div class="dcache">⚡ 缓存命中</div>':'');
   detailEl.innerHTML='<div class="detail-hd" style="--ca:'+esc(ca)+'"><span class="dcdot" style="background:'+esc(ca)+'"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+all.length+' 条结果</div>'+cBadge3+'</div><div class="dtags">'+tagsHtml+'</div><span class="dcount">'+all.length+'</span></div><div class="detail-body"><ul class="rlist">'+itemsHtml+'</ul>'+moreBtn+'</div>';
   // 绑定复制按钮
   detailEl.querySelectorAll('.cpbtn').forEach(function(b){
