@@ -1,4 +1,5 @@
 import { fetchClient } from "../../utils/httpClient";
+import { decodeHtml } from "./htmlSearch";
 import type { Platform, PlatformSearchResult, SearchResultItem } from "../../types";
 
 const BASE_URL = "https://bbs.acgrx.com";
@@ -59,12 +60,7 @@ async function searchAcgrx(game: string): Promise<PlatformSearchResult> {
 
         while ((match = regex.exec(html)) !== null) {
           const postUrl = match[1];
-          let title = match[2]
-            .replace(/&amp;/g, "&")
-            .replace(/&lt;/g, "<")
-            .replace(/&gt;/g, ">")
-            .replace(/&#39;/g, "'")
-            .replace(/&quot;/g, '"');
+          const title = decodeHtml(match[2]);
 
           // 跳过广告赞助链接
           if (postUrl.includes("afengy.app") || postUrl.includes("mofacga.com")) {

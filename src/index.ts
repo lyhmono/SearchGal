@@ -22,7 +22,7 @@ const RATE_WIN = 60_000, RATE_MAX = 30;
 const limits = new Map<string, { n: number; at: number }>();
 let lastLimitSweep = 0;
 
-// 内存限流 fallback（当没有 SEARCHGAL_RATELIMIT binding 时使用，如 Vercel/Netlify）
+// 内存限流 fallback（当没有 RATE_LIMIT binding 时使用，如本地 wrangler dev 未配置）
 function limitedMemory(ip: string) {
   const t = Date.now();
   if (t - lastLimitSweep > RATE_WIN) {
@@ -148,7 +148,7 @@ export default {
       const cache = caches.default;
       const hit = await cache.match(cacheKey);
       if (hit) return hit;
-      const apiUrl = "https://api.yppp.net/api.php?t=" + t;
+      const apiUrl = (env.BG_API_URL || "https://api.yppp.net/api.php") + "?t=" + t;
       try {
         const resp = await fetch(apiUrl, { redirect: "follow" });
         if (!resp.ok) throw new Error("API error: " + resp.status);

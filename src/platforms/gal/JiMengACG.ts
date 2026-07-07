@@ -41,7 +41,7 @@ async function searchJiMengACG(game: string): Promise<PlatformSearchResult> {
     
     const items: SearchResultItem[] = data.data.dataSet.map(item => ({
       name: item.title.trim(),
-      url: item.permalink,
+      url: new URL(item.permalink, API_URL).href,
     }));
 
     searchResult.items = items;

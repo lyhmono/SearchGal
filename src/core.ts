@@ -78,11 +78,8 @@ async function eachLimit<T, R>(items: T[], fn: (item: T, i: number) => Promise<R
 // ── 核心搜索流 ──
 function fmt(data: object) { return JSON.stringify(data) + "\n"; }
 
-// 生成缓存 key（平台集合是编译期常量 PLATFORMS_GAL / PLATFORMS_PATCH，按引用记忆化，避免每次请求重算）
-const platformHashSet = new WeakMap<Platform[], string>();
+// ponytail: 平台集合是编译期常量，哈希代价极低，不需要 WeakMap 记忆化
 function hashPlatformSet(platforms: Platform[]): string {
-  const cached = platformHashSet.get(platforms);
-  if (cached !== undefined) return cached;
   let hash = 5381;
   for (const platform of platforms) {
     const name = platform.name.toLowerCase();
@@ -90,9 +87,7 @@ function hashPlatformSet(platforms: Platform[]): string {
       hash = ((hash << 5) + hash) ^ name.charCodeAt(i);
     }
   }
-  const result = (hash >>> 0).toString(36);
-  platformHashSet.set(platforms, result);
-  return result;
+  return (hash >>> 0).toString(36);
 }
 
 function cacheKey(game: string, platforms: Platform[]): string {
@@ -172,7 +167,13 @@ export async function handleSearchRequestStream(
       const res = await p.search(game);
       const ms = Date.now() - t0; done++;
       if (res.error) { fail(p.name, res.error); log("error", `${p.name} 错误(${ms}ms): ${res.error}`); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
-      else { ok(p.name); if (res.count > 0) { hasResultItems = true; log("info", `${p.name} ${res.count}条(${ms}ms)`); await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } }); } else { await wr({ progress: { completed: done, total } }); } }
+      else {
+        ok(p.name);
+        if (res.count > 0) { hasResultItems = true; log("info", `${p.name} ${res.count}条(${ms}ms)`); }
+        // 即使 0 结果也下发 result 事件（items 为空数组），前端据此在左侧列表显示该平台（灰色「空结果」态），
+        // 让用户能区分「搜了没结果」与「没搜」。hasResultItems 仍只在有条目时置真，空结果不缓存逻辑不受影响。
+        await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } });
+      }
     } catch (e) { done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); log("error", `${p.name} 异常(${ms}ms): ${msg}`); await wr({ progress: { completed: done, total } }); }
   }, concurrency);
 

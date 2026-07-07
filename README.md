@@ -27,7 +27,7 @@
 | ✅ **多端适配** | PC/移动端完美适配，PC端支持展示游戏封面、介绍、标签 |
 | 💡 **多源聚合** | 实时聚合 **37+** Gal资源平台 + **2+** 补丁站 |
 | 🏷️ **智能标注** | 自动标注：🟢免登录 / 🟡需魔法 / ⚪特殊条件 |
-| ☁️ **边缘部署** | 支持 Cloudflare Workers / Vercel Edge 等平台 |
+| ☁️ **部署平台** | Cloudflare Workers |
 | 🌊 **流式响应** | SSE 实时返回搜索结果，无需等待全部完成 |
 
 > 📜 **历史版本**: Python 版本请查看 [`old`](https://github.com/Moe-Sakura/SearchGal/tree/old) 分支 **(已停止维护)**
@@ -83,13 +83,7 @@
 
 ### ☁️ 一键云部署
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Moe-Sakura/SearchGal)
-
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Moe-Sakura/SearchGal)
-
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Moe-Sakura/SearchGal)
-
-[![Deploy to Koyeb](https://img.shields.io/badge/Deploy%20to-Koyeb-121212?style=for-the-badge&logo=koyeb&logoColor=white)](https://app.koyeb.com/deploy?type=git&name=searchgal&repository=github.com/Moe-Sakura/SearchGal&branch=main&builder=dockerfile&ports=8787;http;/)
 
 ### 🧭 服务器配置参考
 
@@ -104,12 +98,6 @@
 ```bash
 pnpm install        # 安装依赖
 pnpm wrangler dev   # 启动开发服务器
-```
-
-### 🐳 Podman Compose 容器化部署
-
-```bash
-podman-compose up -d
 ```
 
 ---
@@ -277,15 +265,9 @@ SearchGal/
 │   │   ├── gal/             # 游戏资源平台
 │   │   └── patch/           # 补丁资源平台
 │   └── utils/               # 工具函数
-├── api/                     # Vercel Edge Functions
-├── netlify/                 # Netlify Functions
 ├── scripts/                 # 构建脚本
 ├── docs/                    # 文档资源
 ├── wrangler.toml            # Cloudflare Workers 配置
-├── vercel.json              # Vercel 部署配置
-├── netlify.toml             # Netlify 部署配置
-├── compose.yml              # Docker Compose 配置
-└── Dockerfile               # Docker 镜像构建文件
 ```
 
 ---

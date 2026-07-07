@@ -40,5 +40,6 @@ export interface StreamProgress {
 export interface Env {
   SEARCHGAL_KV?: KVNamespace;
   SEARCHGAL_RATELIMIT?: RateLimit;
+  BG_API_URL?: string;
   [k: string]: unknown;
 }

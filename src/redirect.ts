@@ -2,8 +2,6 @@ const FRONTEND_URL = 'https://gal.hhoo.cc.cd';
 
 const ALLOWED_HOST_SUFFIXES = [
   '.workers.dev',
-  '.vercel.app',
-  '.netlify.app',
 ];
 
 const ALLOWED_HOSTS_EXACT = new Set([

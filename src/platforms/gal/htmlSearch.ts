@@ -6,7 +6,7 @@ interface HtmlSearchOptions {
   searchUrl: (game: string) => string;
 }
 
-function decodeHtml(text: string): string {
+export function decodeHtml(text: string): string {
   return text
     .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
     .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)))
