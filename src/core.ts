@@ -2,13 +2,42 @@ import type { Env, Platform, PlatformSearchResult } from "./types";
 
 import platformsGal from "./platforms/gal";
 import platformsPatch from "./platforms/patch";
+import { setDefaultTimeout, DEFAULT_TIMEOUT_MS } from "./utils/httpClient";
 
-const PLATFORM_TIMEOUT_MS = 12_000;  // Cloudflare 优化：12秒超时
-const CONCURRENCY = 6;             // Cloudflare 优化：6个并发
+const DEFAULT_CONCURRENCY = 6;     // Cloudflare 优化：默认 6 个并发；可经 SEARCHGAL_CONCURRENCY 环境变量覆盖
 const BREAKER_THRESHOLD = 3;
 const BREAKER_COOLDOWN = 120_000;
 const CACHE_TTL_RESULT_SECONDS = 1_800;
-const CACHE_TTL_EMPTY_SECONDS = 600;
+
+// ── 日志 ──
+// 默认 "warn"：只保留 warn/error，抑制高频的 info 日志（生产环境日志量降 ~90%，
+// Cloudflare Observability 按量计费，少打日志=省钱）。设 LOG_LEVEL="info"/"debug"
+// （或用 ENVIRONMENT="dev"）可开启完整日志用于排查。
+type LogLevel = "info" | "warn" | "error";
+const LOG_RANK: Record<LogLevel, number> = { info: 1, warn: 2, error: 3 };
+let LOG_LEVEL: LogLevel = "warn";
+function resolveLogLevel(env?: Env): LogLevel {
+  const raw = String(env?.LOG_LEVEL ?? env?.ENVIRONMENT ?? "warn").toLowerCase();
+  if (raw === "info" || raw === "debug" || raw === "dev" || raw === "trace") return "info";
+  if (raw === "error" || raw === "fatal") return "error";
+  return "warn";
+}
+// 并发数可经 SEARCHGAL_CONCURRENCY 环境变量覆盖（免费计划可调低以规避 CPU 时间限制）
+function resolveConcurrency(env?: Env): number {
+  const raw = Number(env?.SEARCHGAL_CONCURRENCY);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_CONCURRENCY;
+}
+// 单平台超时（毫秒）可经 SEARCHGAL_TIMEOUT_MS 环境变量覆盖；同步下发到 fetchClient 作为唯一超时源
+function resolveTimeout(env?: Env): number {
+  const raw = Number(env?.SEARCHGAL_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_TIMEOUT_MS;
+}
+function log(level: LogLevel, message: string) {
+  if (LOG_RANK[level] >= LOG_RANK[LOG_LEVEL]) {
+    if (level === "error") console.error(JSON.stringify({ message, level }));
+    else console.log(JSON.stringify({ message, level }));
+  }
+}
 
 // ── 熔断器 ──
 interface Breaker { failures: number; until: number; lastError: string }
@@ -26,7 +55,7 @@ function fail(name: string, err: string) {
   b.failures++; b.lastError = err;
   if (b.failures >= BREAKER_THRESHOLD) {
     b.until = Date.now() + BREAKER_COOLDOWN;
-    console.log(JSON.stringify({ message: `熔断: ${name} (连续${b.failures}次)`, level: "warn" }));
+    log("warn", `熔断: ${name} (连续${b.failures}次)`);
   }
   breakers.set(name, b);
 }
@@ -49,8 +78,11 @@ async function eachLimit<T, R>(items: T[], fn: (item: T, i: number) => Promise<R
 // ── 核心搜索流 ──
 function fmt(data: object) { return JSON.stringify(data) + "\n"; }
 
-// 生成缓存 key
+// 生成缓存 key（平台集合是编译期常量 PLATFORMS_GAL / PLATFORMS_PATCH，按引用记忆化，避免每次请求重算）
+const platformHashSet = new WeakMap<Platform[], string>();
 function hashPlatformSet(platforms: Platform[]): string {
+  const cached = platformHashSet.get(platforms);
+  if (cached !== undefined) return cached;
   let hash = 5381;
   for (const platform of platforms) {
     const name = platform.name.toLowerCase();
@@ -58,24 +90,13 @@ function hashPlatformSet(platforms: Platform[]): string {
       hash = ((hash << 5) + hash) ^ name.charCodeAt(i);
     }
   }
-  return (hash >>> 0).toString(36);
+  const result = (hash >>> 0).toString(36);
+  platformHashSet.set(platforms, result);
+  return result;
 }
 
 function cacheKey(game: string, platforms: Platform[]): string {
   return `search:v2:${hashPlatformSet(platforms)}:${game.toLowerCase().trim()}`;
-}
-
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error("超时")), ms);
-  });
-
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    if (timeoutId !== undefined) clearTimeout(timeoutId);
-  }
 }
 
 // 尝试从 KV 读取缓存
@@ -103,7 +124,10 @@ export async function handleSearchRequestStream(
   game: string, platforms: Platform[], writer: WritableStreamDefaultWriter<Uint8Array>,
   env?: Env, ctx?: ExecutionContext
 ): Promise<void> {
-  console.log(JSON.stringify({ message: `搜索: ${game}`, level: "info" }));
+  LOG_LEVEL = resolveLogLevel(env);
+  setDefaultTimeout(resolveTimeout(env));
+  const concurrency = resolveConcurrency(env);
+  log("info", `搜索: ${game}`);
   const enc = new TextEncoder();
   let done = 0;
 
@@ -112,7 +136,7 @@ export async function handleSearchRequestStream(
     const key = cacheKey(game, platforms);
     const cached = await getCache(env, key);
     if (cached && Array.isArray(cached) && cached.length > 0) {
-      console.log(JSON.stringify({ message: `缓存命中: ${game}`, level: "info" }));
+      log("info", `缓存命中: ${game}`);
       // 重放缓存的 SSE 事件（直接序列化，不使用 fmt）
       for (const event of cached) {
         await writer.write(enc.encode(JSON.stringify(event) + "\n"));
@@ -147,28 +171,31 @@ export async function handleSearchRequestStream(
   await eachLimit(active, async (it) => {
     const p = it.p; const t0 = Date.now();
     try {
-      const res = await withTimeout<PlatformSearchResult>(p.search(game), p.timeoutMs ?? PLATFORM_TIMEOUT_MS);
+      const res = await p.search(game);
       const ms = Date.now() - t0; done++;
-      if (res.error) { hasDegradedResult = true; fail(p.name, res.error); console.log(JSON.stringify({ message: `${p.name} 错误(${ms}ms): ${res.error}`, level: "error" })); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
-      else { ok(p.name); if (res.count > 0) { hasResultItems = true; console.log(JSON.stringify({ message: `${p.name} ${res.count}条(${ms}ms)`, level: "info" })); await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } }); } else { await wr({ progress: { completed: done, total } }); } }
-    } catch (e) { hasDegradedResult = true; done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); console.log(JSON.stringify({ message: `${p.name} 异常(${ms}ms): ${msg}`, level: "error" })); await wr({ progress: { completed: done, total } }); }
-  }, CONCURRENCY);
+      if (res.error) { hasDegradedResult = true; fail(p.name, res.error); log("error", `${p.name} 错误(${ms}ms): ${res.error}`); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
+      else { ok(p.name); if (res.count > 0) { hasResultItems = true; log("info", `${p.name} ${res.count}条(${ms}ms)`); await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } }); } else { await wr({ progress: { completed: done, total } }); } }
+    } catch (e) { hasDegradedResult = true; done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); log("error", `${p.name} 异常(${ms}ms): ${msg}`); await wr({ progress: { completed: done, total } }); }
+  }, concurrency);
 
   await wr({ done: true });
   
   // 写入 KV 缓存（用 ctx.waitUntil 异步写入，不阻塞响应返回）
-  if (env?.SEARCHGAL_KV && collectedEvents.length > 0 && !hasDegradedResult) {
+  // 只要拿到结果条目（hasResultItems）就缓存，即使个别平台超时/报错也照常缓存，
+  // 解决原来「任一平台失败则整次不缓存」导致的命中率过低问题。
+  if (env?.SEARCHGAL_KV && collectedEvents.length > 0 && hasResultItems) {
     const key = cacheKey(game, platforms);
-    const ttlSeconds = hasResultItems ? CACHE_TTL_RESULT_SECONDS : CACHE_TTL_EMPTY_SECONDS;
-    const cachePromise = setCache(env, key, collectedEvents, ttlSeconds);
+    // 仅缓存有意义的最终事件（total / result / done），丢弃纯进度的 progress 事件，减小 KV 体积
+    const toCache = collectedEvents.filter((e) => "total" in e || "result" in e || "done" in e);
+    const cachePromise = setCache(env, key, toCache, CACHE_TTL_RESULT_SECONDS);
     if (ctx) {
       ctx.waitUntil(cachePromise);
     } else {
       await cachePromise;
     }
-    console.log(JSON.stringify({ message: `已缓存: ${game} (${ttlSeconds}s)`, level: "info" }));
-  } else if (hasDegradedResult) {
-    console.log(JSON.stringify({ message: `跳过缓存: ${game} (结果不完整)`, level: "warn" }));
+    log("info", `已缓存: ${game} (${CACHE_TTL_RESULT_SECONDS}s)`);
+  } else if (collectedEvents.length > 0 && !hasResultItems) {
+    log("warn", `跳过缓存: ${game} (无结果条目)`);
   }
 }
 

@@ -7,7 +7,7 @@ export const handler: Handler = async (event) => {
     return {
         statusCode: response.status,
         headers: {
-            'Location': response.headers.get('Location') || 'https://www.searchgal.top'
+            'Location': response.headers.get('Location') || 'https://gal.hhoo.cc.cd'
         }
     };
 };

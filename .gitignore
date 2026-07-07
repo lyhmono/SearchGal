@@ -27,3 +27,6 @@ package-lock.json
 # preview files
 preview.html
 build-preview.mjs
+
+# wrangler deploy --dry-run 输出（本地验证产物，非源码）
+tmp/

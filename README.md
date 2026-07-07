@@ -2,9 +2,9 @@
 
 # 🔍 SearchGal · Gal资源聚合搜索工具
 
-🚀 **极速响应** | 🌊 **SSE 流式传输** | 🎮 **36+ 平台聚合** | ☁️ **边缘部署**
+🚀 **极速响应** | 🌊 **SSE 流式传输** | 🎮 **37+ 平台聚合** | ☁️ **边缘部署**
 
-[前端项目](https://github.com/Moe-Sakura/frontend) • [在线预览](https://searchgal.top) • [快速部署](#-快速部署) • [API 文档](#-api-文档) • [开发者接入](#-开发者接入指南)
+[在线预览](https://gal.hhoo.cc.cd) • [快速部署](#-快速部署) • [API 文档](#-api-文档) • [开发者接入](#-开发者接入指南)
 
 </div>
 
@@ -12,7 +12,7 @@
 
 ## 🖥️ 在线预览
 
-🌐 **预览地址**: [searchgal.top](https://searchgal.top)  
+🌐 **预览地址**: [gal.hhoo.cc.cd](https://gal.hhoo.cc.cd)  
 
 |          电脑端          |          移动端          |
 | :------------------------: | :----------------------: |
@@ -25,7 +25,7 @@
 | 特性 | 说明 |
 |:----:|------|
 | ✅ **多端适配** | PC/移动端完美适配，PC端支持展示游戏封面、介绍、标签 |
-| 💡 **多源聚合** | 实时聚合 **36+** Gal资源平台 + **2+** 补丁站 |
+| 💡 **多源聚合** | 实时聚合 **37+** Gal资源平台 + **2+** 补丁站 |
 | 🏷️ **智能标注** | 自动标注：🟢免登录 / 🟡需魔法 / ⚪特殊条件 |
 | ☁️ **边缘部署** | 支持 Cloudflare Workers / Vercel Edge 等平台 |
 | 🌊 **流式响应** | SSE 实时返回搜索结果，无需等待全部完成 |
@@ -143,11 +143,11 @@ podman-compose up -d
 
 ```bash
 # 搜索游戏资源
-curl -X POST "https://your-api-domain.com/gal" \
+curl -X POST "https://gal.hhoo.cc.cd/gal" \
   -F "game=千恋万花"
 
 # 搜索补丁资源
-curl -X POST "https://your-api-domain.com/patch" \
+curl -X POST "https://gal.hhoo.cc.cd/patch" \
   -F "game=千恋万花"
 ```
 
@@ -159,7 +159,7 @@ async function searchGal(keyword) {
   const formData = new FormData();
   formData.append('game', keyword);
 
-  const response = await fetch('https://your-api-domain.com/gal', {
+  const response = await fetch('https://gal.hhoo.cc.cd/gal', {
     method: 'POST',
     body: formData
   });

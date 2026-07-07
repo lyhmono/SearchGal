@@ -1,4 +1,4 @@
-const FRONTEND_URL = 'https://www.searchgal.top';
+const FRONTEND_URL = 'https://gal.hhoo.cc.cd';
 
 const ALLOWED_HOST_SUFFIXES = [
   '.workers.dev',

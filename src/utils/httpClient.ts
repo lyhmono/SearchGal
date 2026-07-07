@@ -1,10 +1,17 @@
-const TIMEOUT_SECONDS = 15;
+export const DEFAULT_TIMEOUT_MS = 12_000; // 与 core 原 PLATFORM_TIMEOUT_MS 对齐：fetchClient 作为唯一超时源，避免双重超时竞态
+let defaultTimeoutMs = DEFAULT_TIMEOUT_MS;
+
+// 允许在运行时根据部署环境覆盖默认超时（如免费计划下调以规避 CPU 时间限制）。
+// 注意：这是模块级全局，在 Cloudflare 单 isolate 内对所有请求共享；同一部署下配置一致时无害。
+export function setDefaultTimeout(ms: number) {
+  if (Number.isFinite(ms) && ms > 0) defaultTimeoutMs = Math.floor(ms);
+}
 
 const HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 (From www.searchgal.top) (https://github.com/Moe-Sakura/SearchGal)",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
 };
 
-type FetchOptions = RequestInit & { cf?: { cacheEverything?: boolean; cacheTtl?: number } };
+type FetchOptions = RequestInit & { cf?: { cacheEverything?: boolean; cacheTtl?: number }; timeoutMs?: number };
 
 /**
  * 一个封装了原生 fetch 并增加了超时功能的 HTTP 客户端。
@@ -15,10 +22,11 @@ type FetchOptions = RequestInit & { cf?: { cacheEverything?: boolean; cacheTtl?:
  */
 export async function fetchClient(
   url: string | URL,
-  options: RequestInit = {}
+  options: FetchOptions = {}
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_SECONDS * 1000);
+  const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   const finalOptions: FetchOptions = {
     ...options,

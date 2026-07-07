@@ -13,6 +13,13 @@ enabled = true
 
 [vars]
 ENVIRONMENT = "production"
+# ── 可选调参（均可省略，省略时用内置默认值）──
+# LOG_LEVEL: 日志级别，默认 "warn"（只记 warn/error，省 Observability 用量）。排查时设 "info"。
+# SEARCHGAL_CONCURRENCY: 单搜索并发平台数，默认 6。免费计划触发 CPU 时间超限时调低（如 3）。
+# SEARCHGAL_TIMEOUT_MS: 单平台请求超时(毫秒)，默认 12000。免费计划可调低（如 8000）以缩短单次搜索耗时。
+# LOG_LEVEL = "warn"
+# SEARCHGAL_CONCURRENCY = 6
+# SEARCHGAL_TIMEOUT_MS = 12000
 
 # KV 缓存
 [[kv_namespaces]]

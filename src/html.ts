@@ -261,7 +261,7 @@ body{
 </header>
 <section class="launcher">
   <div class="tabs" id="tabs">
-    <button class="tab on" data-m="gal">资源<span class="badge">33</span></button>
+    <button class="tab on" data-m="gal">资源<span class="badge">34</span></button>
     <button class="tab" data-m="patch">补丁<span class="badge">2</span></button>
   </div>
 <div class="swrap" id="swrap">
@@ -275,7 +275,7 @@ body{
   </form>
   <div class="hdrop" id="hd"></div>
 </div>
-<p class="pcount">已接入 <b>33</b> 个资源站 + <b>2</b> 个补丁站 · 实时聚合</p>
+<p class="pcount">已接入 <b>34</b> 个资源站 + <b>2</b> 个补丁站 · 实时聚合</p>
 <div class="sbar" id="sbar"><span id="st"></span><button class="btn btn2" onclick="clr()">清空</button></div>
 <div class="pwrap"><div class="ptrack"><div class="pfill" id="pf" style="width:0%"></div></div><span id="ptext">就绪</span></div>
 </section>
@@ -510,12 +510,13 @@ sf.addEventListener('submit',function(e){
   fetch('/'+m,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'game='+encodeURIComponent(kw),signal:abortCtrl.signal}).then(function(r){
     if(!r.ok)return r.json().then(function(err){throw new Error(err.error||'搜索失败('+r.status+')')});
     var rd=r.body.getReader(),dc=new TextDecoder();buf='';
-    function pump(){return rd.read().then(function(v){if(v.value){buf+=dc.decode(v.value,{stream:true});var ls=buf.split('\\n');buf=ls.pop()||'';ls.forEach(function(l){if(!l.trim())return;try{pm(JSON.parse(l))}catch(e){}})}
+    function pump(){return rd.read().then(function(v){if(v.value){buf+=dc.decode(v.value,{stream:true});var ls=buf.split('\n');buf=ls.pop()||'';ls.forEach(function(l){if(!l.trim())return;try{pm(JSON.parse(l))}catch(e){}})}
       if(v.done){if(buf.trim())try{pm(JSON.parse(buf))}catch(e){}finish();return}return pump()})}return pump()})
   .catch(function(err){if(err.name==='AbortError')return;plistBody.innerHTML='<div class="plist-empty"><span class="pe-icon">⚠️</span>'+esc(err.message)+'</div>';pt.textContent='失败';sbz(false)})
 });
 
 function pm(d){
+  if(d.done){pf.style.width='100%';pt.textContent=total+'/'+total;return}
   if(typeof d.total==='number'&&!d.progress){tp=d.total;total=tp;pt.textContent='0/'+tp;phCount.textContent='0/'+tp+' · 等待中';return}
   if(d.progress){
     var c=d.progress.completed,t=d.progress.total;if(!tp)tp=t;pf.style.width=(c/t*100)+'%';pt.textContent=c+'/'+t;done=c;

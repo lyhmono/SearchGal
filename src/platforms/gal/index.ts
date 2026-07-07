@@ -2,6 +2,7 @@ import type { Platform } from "../../types";
 import ACGGangWan from "./ACGGangWan";
 import ACGYingYingGuai from "./ACGYingYingGuai";
 import ACGYouXiJi from "./ACGYouXiJi";
+import Acgrx from "./Acgrx";
 // import BiAnXingLu from "./BiAnXingLu"; // 已禁用：源站返回 521（Cloudflare 回源失败），站点已宕机，故停用
 import DaoHeGal from "./DaoHeGal";
 import ErGouACG from "./ErGouACG";
@@ -45,6 +46,7 @@ const platforms: Platform[] = [
   ACGGangWan,
   ACGYingYingGuai,
   ACGYouXiJi,
+  Acgrx,
   // BiAnXingLu, // 已禁用
   DaoHeGal,
   ErGouACG,

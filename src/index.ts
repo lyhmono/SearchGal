@@ -2,6 +2,15 @@ import { handleSearchRequestStream, PLATFORMS_GAL, PLATFORMS_PATCH, getPlatformH
 import type { Env, Platform } from "./types";
 import { HTML } from "./html";
 
+// 用 HTML 内容哈希生成缓存键：改了 html.ts 后哈希自动变化，Cache API 旧键自然失效，
+// 不再依赖手动把 /__html_v4 改成 v5 这种容易忘的版本号 bump。
+function hashString(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+  return (h >>> 0).toString(36);
+}
+const HTML_CACHE_KEY = "/__html_" + hashString(HTML);
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -100,7 +109,7 @@ export default {
 
     // 首页 HTML（启用 Cache API，命中时直接返回缓存的 Response，省去重复序列化）
     if (req.method === "GET" && (p === "/" || p === "/index.html")) {
-      const ck = new Request(u.origin + "/__html_v4", req), cache = caches.default;
+      const ck = new Request(u.origin + HTML_CACHE_KEY, req), cache = caches.default;
       const hit = await cache.match(ck);
       if (hit) return hit;
       const r = new Response(HTML, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "CDN-Cache-Control": "no-cache", "Vary": "Accept-Encoding", "X-Content-Type-Options": "nosniff" } });
@@ -136,12 +145,16 @@ export default {
       try {
         const resp = await fetch(apiUrl, { redirect: "follow" });
         if (!resp.ok) throw new Error("API error: " + resp.status);
+        const contentType = (resp.headers.get("Content-Type") || "").toLowerCase();
+        // 仅当返回真正是图片时才写入一小时缓存，避免把上游错误页/非图片响应写进缓存
+        const isImage = contentType.startsWith("image/");
         const headers = new Headers();
-        headers.set("Content-Type", resp.headers.get("Content-Type") || "image/*");
+        headers.set("Content-Type", contentType || "image/*");
         headers.set("Cache-Control", "public, max-age=3600");
         headers.set("Access-Control-Allow-Origin", "*");
         const r = new Response(resp.body, { status: 200, headers });
-        ctx.waitUntil(cache.put(cacheKey, r.clone()));
+        if (isImage) ctx.waitUntil(cache.put(cacheKey, r.clone()));
+        else console.error("背景图片代理返回非图片类型，跳过缓存:", contentType);
         return r;
       } catch (e) {
         console.error("背景图片代理失败:", e);
