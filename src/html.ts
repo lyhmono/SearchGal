@@ -519,7 +519,7 @@ sf.addEventListener('submit',function(e){
   fetch('/'+m,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'game='+encodeURIComponent(kw),signal:abortCtrl.signal}).then(function(r){
     if(!r.ok)return r.json().then(function(err){throw new Error(err.error||'搜索失败('+r.status+')')});
     var rd=r.body.getReader(),dc=new TextDecoder();buf='';
-    function pump(){return rd.read().then(function(v){if(v.value){buf+=dc.decode(v.value,{stream:true});var ls=buf.split('\n');buf=ls.pop()||'';ls.forEach(function(l){if(!l.trim())return;try{pm(JSON.parse(l))}catch(e){}})}
+    function pump(){return rd.read().then(function(v){if(v.value){buf+=dc.decode(v.value,{stream:true});var ls=buf.split('\\n');buf=ls.pop()||'';ls.forEach(function(l){if(!l.trim())return;try{pm(JSON.parse(l))}catch(e){}})}
       if(v.done){if(buf.trim())try{pm(JSON.parse(buf))}catch(e){}finish();return}return pump()})}return pump()})
   .catch(function(err){if(err.name==='AbortError')return;plistBody.innerHTML='<div class="plist-empty"><span class="pe-icon">⚠️</span>'+esc(err.message)+'</div>';pt.textContent='失败';sbz(false)})
 });
