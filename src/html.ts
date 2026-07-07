@@ -478,7 +478,7 @@ function renderDetail(){
   }
   var ca=p.color||'#888';
   // 校验 color 格式，防 CSS 注入（只允许 #hex / 命名色 / var()）
-  if(!/^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+|var\\(--[a-z0-9-]+\\)$/.test(ca))ca='#888';
+  if(!/^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+|var\\(--[a-z0-9-]+\\)$)$/.test(ca))ca='#888';
   var tagsHtml=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+esc(t)+'</span>'}).join(''):'';
   var all=p.items;
   var expanded=p.expanded||all.length<=LM;
