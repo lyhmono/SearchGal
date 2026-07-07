@@ -8,10 +8,10 @@ export const HTML = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>SearchGAL · Gal资源聚合搜索</title>
-<meta name="description" content="聚合搜索33+ Gal资源平台，SSE流式返回">
+<meta name="description" content="聚合搜索37+ Gal资源平台，SSE流式返回">
 <meta name="theme-color" content="#0a0614">
 <meta property="og:title" content="SearchGAL">
-<meta property="og:description" content="聚合搜索33+ Gal资源平台，一键发现资源">
+<meta property="og:description" content="聚合搜索37+ Gal资源平台，一键发现资源">
 
 <!-- Resource Hints -->
 <link rel="dns-prefetch" href="//www.kungal.com">
@@ -261,7 +261,7 @@ body{
 </header>
 <section class="launcher">
   <div class="tabs" id="tabs">
-    <button class="tab on" data-m="gal">资源<span class="badge">34</span></button>
+    <button class="tab on" data-m="gal">资源<span class="badge">37</span></button>
     <button class="tab" data-m="patch">补丁<span class="badge">2</span></button>
   </div>
 <div class="swrap" id="swrap">
@@ -275,7 +275,7 @@ body{
   </form>
   <div class="hdrop" id="hd"></div>
 </div>
-<p class="pcount">已接入 <b>34</b> 个资源站 + <b>2</b> 个补丁站 · 实时聚合</p>
+<p class="pcount">已接入 <b>37</b> 个资源站 + <b>2</b> 个补丁站 · 实时聚合</p>
 <div class="sbar" id="sbar"><span id="st"></span><button class="btn btn2" onclick="clr()">清空</button></div>
 <div class="pwrap"><div class="ptrack"><div class="pfill" id="pf" style="width:0%"></div></div><span id="ptext">就绪</span></div>
 </section>

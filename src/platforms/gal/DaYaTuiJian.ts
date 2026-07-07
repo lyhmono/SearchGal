@@ -1,10 +1,10 @@
 import { fetchClient } from "../../utils/httpClient";
 import type { Platform, PlatformSearchResult, SearchResultItem } from "../../types";
 
-// 山有木兮已从 symxyx.com 迁至 symxyx.net，使用 WP REST API 搜索
-const API_URL = "https://symxyx.net/wp-json/wp/v2/posts";
+const API_URL = "https://dayalt.top/wp-json/wp/v2/posts";
+const BASE_URL = "https://dayalt.top";
 
-interface ShanYouMuXiPost {
+interface DaYaTuiJianPost {
   id: number;
   title: {
     rendered: string;
@@ -12,7 +12,7 @@ interface ShanYouMuXiPost {
   link: string;
 }
 
-async function searchShanYouMuXi(game: string): Promise<PlatformSearchResult> {
+async function searchDaYaTuiJian(game: string): Promise<PlatformSearchResult> {
   const searchResult: PlatformSearchResult = {
     count: 0,
     items: [],
@@ -29,7 +29,7 @@ async function searchShanYouMuXi(game: string): Promise<PlatformSearchResult> {
       throw new Error(`资源平台 SearchAPI 响应异常状态码 ${response.status}`);
     }
 
-    const posts = await response.json() as ShanYouMuXiPost[];
+    const posts = await response.json() as DaYaTuiJianPost[];
 
     const items: SearchResultItem[] = posts.map((post) => ({
       name: post.title.rendered.trim(),
@@ -50,12 +50,12 @@ async function searchShanYouMuXi(game: string): Promise<PlatformSearchResult> {
   return searchResult;
 }
 
-const ShanYouMuXi: Platform = {
-  name: "山有木兮",
-  color: "yellow",
-  tags: ["NoReq", "magic"],
-  magic: true,
-  search: searchShanYouMuXi,
+const DaYaTuiJian: Platform = {
+  name: "大丫推荐",
+  color: "lime",
+  tags: ["NoReq", "MixDrive"],
+  magic: false,
+  search: searchDaYaTuiJian,
 };
 
-export default ShanYouMuXi;
+export default DaYaTuiJian;

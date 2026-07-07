@@ -149,8 +149,7 @@ export async function handleSearchRequestStream(
   let lock: Promise<void> = Promise.resolve();
   const collectedEvents: object[] = [];
   let hasResultItems = false;
-  let hasDegradedResult = false;
-  const wr = (d: object) => { collectedEvents.push(d); lock = lock.then(() => writer.write(enc.encode(fmt(d)))); return lock; };
+  const wr = (d: object) => { collectedEvents.push(d); lock = lock.then(() => writer.write(enc.encode(fmt(d))).catch(() => {})); return lock; };
 
   // 标记熔断
   const items = platforms.map(p => ({ p, skip: isOpen(p.name) }));
@@ -161,7 +160,6 @@ export async function handleSearchRequestStream(
   for (const it of items) {
     if (!it.skip) continue;
     done++;
-    hasDegradedResult = true;
     const b = breakers.get(it.p.name);
     await wr({ progress: { completed: done, total }, result: { name: it.p.name, color: "#555", tags: [...it.p.tags, "breaker"], items: [], error: "已熔断 · " + (b?.lastError || "未知") } });
   }
@@ -173,9 +171,9 @@ export async function handleSearchRequestStream(
     try {
       const res = await p.search(game);
       const ms = Date.now() - t0; done++;
-      if (res.error) { hasDegradedResult = true; fail(p.name, res.error); log("error", `${p.name} 错误(${ms}ms): ${res.error}`); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
+      if (res.error) { fail(p.name, res.error); log("error", `${p.name} 错误(${ms}ms): ${res.error}`); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
       else { ok(p.name); if (res.count > 0) { hasResultItems = true; log("info", `${p.name} ${res.count}条(${ms}ms)`); await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } }); } else { await wr({ progress: { completed: done, total } }); } }
-    } catch (e) { hasDegradedResult = true; done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); log("error", `${p.name} 异常(${ms}ms): ${msg}`); await wr({ progress: { completed: done, total } }); }
+    } catch (e) { done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); log("error", `${p.name} 异常(${ms}ms): ${msg}`); await wr({ progress: { completed: done, total } }); }
   }, concurrency);
 
   await wr({ done: true });

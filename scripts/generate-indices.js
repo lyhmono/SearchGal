@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const platformsDir = path.join(__dirname, '../src/platforms');
+const htmlPath = path.join(__dirname, '../src/html.ts');
 const helperFiles = new Set(['htmlSearch.ts']);
 
 // 已禁用的平台：源文件保留，但不再被索引引用（在生成的 index.ts 中以注释形式标出）。
@@ -24,14 +25,14 @@ const DISABLED = {
 
 function generateIndexFile(directory) {
   const dirPath = path.join(platformsDir, directory);
-  if (!fs.existsSync(dirPath)) return;
+  if (!fs.existsSync(dirPath)) return 0;
 
   const disabled = DISABLED[directory] || {};
 
   const files = fs.readdirSync(dirPath)
     .filter(file => file.endsWith('.ts') && file !== 'index.ts' && !helperFiles.has(file));
 
-  if (files.length === 0) return;
+  if (files.length === 0) return 0;
 
   const imports = files.map(file => {
     const platformName = path.basename(file, '.ts');
@@ -64,9 +65,40 @@ export default platforms;
   fs.writeFileSync(path.join(dirPath, 'index.ts'), content.trim() + '\n');
   const disabledCount = files.length - activeCount;
   console.log(`Generated index for ${directory} with ${activeCount} active platforms${disabledCount ? ` (${disabledCount} disabled)` : ''}.`);
+  return activeCount;
 }
 
 console.log('Generating platform indices...');
-generateIndexFile('gal');
-generateIndexFile('patch');
+const galCount = generateIndexFile('gal');
+const patchCount = generateIndexFile('patch');
+
+// ── 同步更新 html.ts 中的平台计数 ──
+if (galCount > 0 || patchCount > 0) {
+  let html = fs.readFileSync(htmlPath, 'utf-8');
+
+  // 更新 meta description 和 og:description
+  html = html.replace(
+    /(聚合搜索)\d+\+( Gal资源平台)/g,
+    `$1${galCount}+$2`
+  );
+  // 更新资源 tab badge
+  html = html.replace(
+    /(资源<span class="badge">)\d+(<\/span>)/g,
+    `$1${galCount}$2`
+  );
+  // 更新补丁 tab badge
+  html = html.replace(
+    /(补丁<span class="badge">)\d+(<\/span>)/g,
+    `$1${patchCount}$2`
+  );
+  // 更新 pcount 中的资源站数字
+  html = html.replace(
+    /(已接入 <b>)\d+(<\/b> 个资源站 \+ <b>)\d+(<\/b> 个补丁站)/g,
+    `$1${galCount}$2${patchCount}$3`
+  );
+
+  fs.writeFileSync(htmlPath, html, 'utf-8');
+  console.log(`Updated html.ts: ${galCount} gal + ${patchCount} patch.`);
+}
+
 console.log('Done.');
