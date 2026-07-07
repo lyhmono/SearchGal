@@ -2,7 +2,7 @@ import type { Env, Platform, PlatformSearchResult } from "./types";
 
 import platformsGal from "./platforms/gal";
 import platformsPatch from "./platforms/patch";
-import { setDefaultTimeout, DEFAULT_TIMEOUT_MS } from "./utils/httpClient";
+import { setDefaultTimeout, DEFAULT_TIMEOUT_MS, resetSubrequestCounter, getSubrequestCount } from "./utils/httpClient";
 
 const DEFAULT_CONCURRENCY = 6;     // Cloudflare 优化：默认 6 个并发；可经 SEARCHGAL_CONCURRENCY 环境变量覆盖
 const BREAKER_THRESHOLD = 3;
@@ -31,6 +31,13 @@ function resolveConcurrency(env?: Env): number {
 function resolveTimeout(env?: Env): number {
   const raw = Number(env?.SEARCHGAL_TIMEOUT_MS);
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_TIMEOUT_MS;
+}
+// 单次调用子请求预算（默认 40，为免费计划 50 硬上限留出余量，避免触发硬报错）。
+// 付费计划可经 SEARCHGAL_SUBREQUEST_BUDGET 调高（并配合 wrangler.toml 的 limits.subrequests）。
+const DEFAULT_SUBREQUEST_BUDGET = 40;
+function resolveSubrequestBudget(env?: Env): number {
+  const raw = Number(env?.SEARCHGAL_SUBREQUEST_BUDGET);
+  return Number.isFinite(raw) && raw > 0 ? Math.min(Math.floor(raw), 10_000) : DEFAULT_SUBREQUEST_BUDGET;
 }
 function log(level: LogLevel, message: string) {
   if (LOG_RANK[level] >= LOG_RANK[LOG_LEVEL]) {
@@ -120,8 +127,10 @@ export async function handleSearchRequestStream(
   env?: Env, ctx?: ExecutionContext
 ): Promise<void> {
   LOG_LEVEL = resolveLogLevel(env);
+  resetSubrequestCounter();
   setDefaultTimeout(resolveTimeout(env));
   const concurrency = resolveConcurrency(env);
+  const subrequestBudget = resolveSubrequestBudget(env);
   log("info", `搜索: ${game}`);
   const enc = new TextEncoder();
   let done = 0;
@@ -163,6 +172,12 @@ export async function handleSearchRequestStream(
 
   await eachLimit(active, async (it) => {
     const p = it.p; const t0 = Date.now();
+    // 子请求预算保护：接近上限时优雅跳过剩余平台，避免 Cloudflare 硬报错使整次搜索失败
+    if (getSubrequestCount() >= subrequestBudget) {
+      done++;
+      await wr({ progress: { completed: done, total }, result: { name: p.name, color: "#555", tags: [...p.tags, "skipped"], items: [], error: "已达单次调用子请求上限，已跳过（升级 Workers Paid 可解除）" } });
+      return;
+    }
     try {
       const res = await p.search(game);
       const ms = Date.now() - t0; done++;

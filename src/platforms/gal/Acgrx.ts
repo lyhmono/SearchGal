@@ -11,11 +11,13 @@ const BASE_URL = "https://bbs.acgrx.com";
  * 原因：该站搜索功能为纯前端 JS 实现，服务端 /search/ 不返回过滤结果。
  * 
  * 站点规模：452 页 × ~52 条/页 ≈ 23,500 条帖子。
- * 本适配器爬取前 MAX_PAGES 页（约 1,560 条），分 3 批并行拉取以平衡覆盖率和速度。
+ * 本适配器爬取前 MAX_PAGES 页（约 416 条），分批并行拉取以平衡覆盖率和速度。
+ * 默认值已调低以适配 Cloudflare 免费计划「单次调用 50 子请求」硬上限；
+ * 升级 Workers Paid 后可调高 MAX_PAGES 与 SEARCHGAL_SUBREQUEST_BUDGET 获得更深覆盖。
  * 超时：每页 fetch 允许 15 秒，分批串行避免瞬时并发过高。
  */
 
-const MAX_PAGES = 30;
+const MAX_PAGES = 8;
 const BATCH_SIZE = 10;
 
 async function searchAcgrx(game: string): Promise<PlatformSearchResult> {

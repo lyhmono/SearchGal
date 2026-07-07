@@ -1,6 +1,13 @@
 export const DEFAULT_TIMEOUT_MS = 12_000; // 与 core 原 PLATFORM_TIMEOUT_MS 对齐：fetchClient 作为唯一超时源，避免双重超时竞态
 let defaultTimeoutMs = DEFAULT_TIMEOUT_MS;
 
+// 子请求计数器：用于单次 Worker 调用内对 fetch 数量做预算保护，
+// 避免触发 Cloudflare「Too many subrequests」硬限制导致整次搜索失败。
+// 注意：模块级状态在 isolate 内跨请求共享，每次调用须由 core 在开始搜索时 reset。
+let subrequestCount = 0;
+export function resetSubrequestCounter() { subrequestCount = 0; }
+export function getSubrequestCount() { return subrequestCount; }
+
 // 允许在运行时根据部署环境覆盖默认超时（如免费计划下调以规避 CPU 时间限制）。
 // 注意：这是模块级全局，在 Cloudflare 单 isolate 内对所有请求共享；同一部署下配置一致时无害。
 export function setDefaultTimeout(ms: number) {
@@ -54,6 +61,7 @@ export async function fetchClient(
     };
   }
 
+  subrequestCount++;
   try {
     const response = await fetch(url, finalOptions);
     return response;

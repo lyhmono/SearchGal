@@ -18,10 +18,19 @@ ENVIRONMENT = "production"
 # SEARCHGAL_CONCURRENCY: 单搜索并发平台数，默认 6。免费计划触发 CPU 时间超限时调低（如 3）。
 # SEARCHGAL_TIMEOUT_MS: 单平台请求超时(毫秒)，默认 12000。免费计划可调低（如 8000）以缩短单次搜索耗时。
 # BG_API_URL: 背景图代理上游地址（避免广告拦截器）。默认 https://api.yppp.net/api.php，换源只改这一行。
+# SEARCHGAL_SUBREQUEST_BUDGET: 单次调用子请求预算（默认 40，为免费计划 50 硬上限留余量）。
+#   接近上限时剩余平台会被优雅跳过（不再整次报错）。升级 Workers Paid 后可调高（如 1000）。
 # LOG_LEVEL = "warn"
 # SEARCHGAL_CONCURRENCY = 6
 # SEARCHGAL_TIMEOUT_MS = 12000
 # BG_API_URL = "https://api.yppp.net/api.php"
+# SEARCHGAL_SUBREQUEST_BUDGET = 40
+
+# 单次调用子请求上限（Cloudflare Workers 平台限制）。
+# 免费计划硬上限为 50，无法调高；本仓库通过上方 SEARCHGAL_SUBREQUEST_BUDGET 做优雅降级。
+# 若已升级 Workers Paid（默认上限 10,000），可取消下方注释提高上限以获得完整 37 平台覆盖：
+# [limits]
+# subrequests = 1000
 
 # KV 缓存
 [[kv_namespaces]]
