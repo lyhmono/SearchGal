@@ -102,14 +102,51 @@ pnpm wrangler dev   # 启动开发服务器
 
 ---
 
+## ☁️ Cloudflare 免费计划架构（重要）
+
+本站的核心挑战：**Cloudflare 免费计划单次 Worker 调用硬限 50 个子请求**。37+ 资源站累加远超上限，曾导致一半左右平台报 `Too many subrequests`。
+
+### 解决方案：客户端分批 fan-out
+
+网页搜索**不依赖服务端同区自调用**（免费计划会静默拦截），而是把平台列表在**浏览器端**切成每批 8 个，每批对内部端点 `POST /__batch` 发起一次**独立**的 Worker 调用——每次调用各有专属的 50 子请求预算，并行执行后合并结果。这样免费计划也能搜完全部平台，且零额外配置。
+
+> 为什么不在服务端分批？因为 Cloudflare 免费计划禁止同一 Zone 内 Worker 用 `fetch` 自调用（共享入站请求，会被直接丢弃）。服务端 fan-out 只在配置了 **Service Binding**（`SELF`）的付费计划下才启用，作为对外 `/gal`、`/patch` 的 SSE 接口。
+
+### KV 缓存
+
+每个 `/__batch` 的响应按 `游戏名 + 本批平台集合` 写入 KV（`SEARCHGAL_KV`），TTL 默认 30 分钟。重复搜索会直接命中缓存、秒回，并省下子请求额度。命中缓存的批次，前端对应平台会显示 **⚡ 缓存命中** 标记（左侧闪电图标 + 右侧详情胶囊）。
+
+### 本地开发
+
+```bash
+pnpm install
+pnpm wrangler dev      # 默认 8787 端口，/health 可查平台数
+```
+
+### 部署到 Cloudflare
+
+```bash
+pnpm wrangler deploy   # 需先 wrangler login
+```
+
+变量/绑定（均可在 `wrangler.toml` 配置）：
+- `SEARCHGAL_KV` — KV 命名空间（缓存，可选但强烈建议）
+- `SEARCHGAL_RATELIMIT` — Cloudflare Rate Limiting 绑定（分布式限流，可选；缺省降级为内存限流）
+- `SEARCHGAL_BATCH_SIZE` — 单批平台数（默认 8，上限 20，仅影响服务端 fan-out）
+- `SEARCHGAL_TIMEOUT_MS` / `SEARCHGAL_CONCURRENCY` / `SEARCHGAL_SUBREQUEST_BUDGET` — 超时/并发/子请求预算调优
+- `[[services]] binding = "SELF"` — **仅付费计划**：指向自身的 Service Binding，启用服务端 SSE `/gal`、`/patch`（免费计划保持客户端分批即可，无需此配置）
+
+---
+
 ## 📡 API 文档
 
 ### 接口说明
 
 | 方法 | 路径 | 说明 |
 |:----:|------|------|
-| POST | `/gal` | 搜索游戏资源 |
-| POST | `/patch` | 搜索补丁资源 |
+| POST | `/gal` | 搜索游戏资源（**SSE 流式**，仅当配置了 `SELF` Service Binding 的付费计划可用；免费计划前端改走客户端分批，直接调此接口会返回 400 指引） |
+| POST | `/patch` | 搜索补丁资源（同上） |
+| POST | `/__batch` | **内部端点**：接收 `{game, type, platforms[]}`，返回 `{total, results[], cached}`。网页客户端据此分批并行调用，每批 = 一次独立 Worker 调用（各有专属 50 子请求预算），合并后即为完整搜索结果。`cached=true` 表示本批命中 KV 缓存 |
 
 ---
 
@@ -192,6 +229,31 @@ searchGal('千恋万花');
 {"progress": {"completed": 2, "total": 10}, "result": {"name": "xx资源站", "color": "lime", "tags": ["NoReq", "SuDrive"], "items": [{"name": "千恋万花", "url": "https://xx.com/game/12345"}]}}  // 搜索结果
 {"done": true}                                   // 结束信号
 ```
+
+### 内部批量接口 `/__batch`（JSON）
+
+网页默认走此接口做客户端 fan-out。也可直接调用：
+
+```bash
+curl -X POST "https://你的域名/__batch" \
+  -H "Content-Type: application/json" \
+  -d '{"game":"千恋万花","type":"gal","platforms":["鲲Galgame","Koyso"]}'
+```
+
+响应（每批独立，命中缓存时 `cached:true`）：
+
+```json
+{
+  "total": 2,
+  "cached": false,
+  "results": [
+    {"name": "鲲Galgame", "color": "#3b82f6", "tags": ["NoReq"], "items": [{"name": "千恋万花", "url": "https://www.kungal.com/..."}]},
+    {"name": "Koyso", "color": "#a855f7", "tags": ["magic"], "items": []}
+  ]
+}
+```
+
+---
 
 ### 🏷️ 标签说明
 

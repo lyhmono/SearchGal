@@ -258,11 +258,13 @@ export default {
         .map((n) => all.find((pl) => pl.name === n))
         .filter((x): x is Platform => Boolean(x));
 
-      // 每批结果按「game + 本批平台集合」缓存：命中则直接返回，省子请求、加速重复搜索
+      // 每批结果按「game + 本批平台集合」缓存：命中则直接返回，省子请求、加速重复搜索。
+      // servedFromCache 标记本批是否来自 KV 缓存，前端据此为对应平台打「⚡ 缓存命中」标记。
       let results: StreamResult[] | null = null;
+      let servedFromCache = false;
       if (env?.SEARCHGAL_KV && subset.length > 0) {
         const cached = await getCache(env, cacheKey(game, subset));
-        if (cached && Array.isArray(cached)) results = cached as StreamResult[];
+        if (cached && Array.isArray(cached)) { results = cached as StreamResult[]; servedFromCache = true; }
       }
       if (!results) {
         results = await runPlatformsCollect(game, subset, env);
@@ -271,7 +273,7 @@ export default {
         }
       }
 
-      return new Response(JSON.stringify({ total: subset.length, results }), {
+      return new Response(JSON.stringify({ total: subset.length, results, cached: servedFromCache }), {
         headers: { "Content-Type": "application/json", ...CORS },
       });
     }

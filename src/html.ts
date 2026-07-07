@@ -169,6 +169,9 @@ body{
 .pcount-num{font-size:.78rem;color:var(--t3);font-weight:500;font-variant-numeric:tabular-nums;flex-shrink:0;min-width:20px;text-align:right}
 .pcount-num.ok{color:var(--tag-gt)}
 .pcount-num.err{color:var(--e)}
+/* 缓存命中标记：左侧列表闪电图标 + 右侧详情胶囊 */
+.pcache{font-size:.62rem;margin-left:.3rem;color:var(--a3);opacity:.9;vertical-align:middle;-webkit-user-select:none;user-select:none}
+.dcache{display:inline-block;margin-top:.35rem;font-size:.66rem;color:var(--a3);border:1px solid rgba(255,210,143,.28);background:rgba(255,210,143,.08);padding:.08rem .35rem;border-radius:3px;letter-spacing:.02em}
 
 .plist-empty{padding:2rem .6rem;color:var(--t3);font-size:.82rem}
 .plist-empty .pe-icon{font-size:1.5rem;display:block;margin-bottom:.5rem;opacity:.4}
@@ -435,10 +438,11 @@ function renderPlist(){
     else if(cnt>0)meta='<span class="pm-ok">'+(p.tags?p.tags.slice(0,3).map(esc).join(' · '):'')+'</span>';
     else meta='空结果';
     var safeName=esc(p.name);
+    var cacheBadge=p.cached?'<span class="pcache" title="结果来自 KV 缓存，秒回">⚡</span>':'';
     var active=p.name===selName?' active':'';
-    html+='<div class="pitem'+active+'" data-name="'+safeName+'" tabindex="0" role="button" aria-label="'+safeName+(cnt>0?'，'+cnt+' 条结果':'')+'">'+
+    html+='<div class="pitem'+active+'" data-name="'+safeName+'" tabindex="0" role="button" aria-label="'+safeName+(cnt>0?'，'+cnt+' 条结果':'')+(p.cached?'，缓存命中':'')+'">'+
       '<span class="pdot '+dotCls+'"></span>'+
-      '<div class="pinfo"><div class="pname">'+safeName+'</div><div class="pmeta">'+meta+'</div></div>'+
+      '<div class="pinfo"><div class="pname">'+safeName+cacheBadge+'</div><div class="pmeta">'+meta+'</div></div>'+
       '<span class="pcount-num '+numCls+'">'+numTxt+'</span></div>';
   });
   plistBody.innerHTML=html;
@@ -478,12 +482,14 @@ function renderDetail(){
     return;
   }
   if(p.error){
-    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--e)"><span class="dcdot" style="background:var(--e)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">搜索失败</div></div><span class="dcount err">错误</span></div><div class="detail-body"><div class="detail-err"><span class="de-ico">⚠️</span>'+esc(p.error)+'</div></div>';
+    var cBadge=(p.cached?'<div class="dcache">⚡ 缓存命中</div>':'');
+    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--e)"><span class="dcdot" style="background:var(--e)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">搜索失败</div>'+cBadge+'</div><span class="dcount err">错误</span></div><div class="detail-body"><div class="detail-err"><span class="de-ico">⚠️</span>'+esc(p.error)+'</div></div>';
     return;
   }
   if(!p.items||p.items.length===0){
+    var cBadge2=(p.cached?'<div class="dcache">⚡ 缓存命中</div>':'');
     var etags=p.tags?p.tags.map(function(t){return '<span class="tag '+tc(t)+'">'+esc(t)+'</span>'}).join(''):'';
-    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--t3)"><span class="dcdot" style="background:var(--t3)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+(p.tags?p.tags.map(esc).join(' · '):'')+'</div></div><div class="dtags">'+etags+'</div><span class="dcount zero">0</span></div><div class="detail-body"><div class="detail-empty-msg">该平台无匹配结果</div></div>';
+    detailEl.innerHTML='<div class="detail-hd" style="--ca:var(--t3)"><span class="dcdot" style="background:var(--t3)"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+(p.tags?p.tags.map(esc).join(' · '):'')+'</div>'+cBadge2+'</div><div class="dtags">'+etags+'</div><span class="dcount zero">0</span></div><div class="detail-body"><div class="detail-empty-msg">该平台无匹配结果</div></div>';
     return;
   }
   // 按相关性排序
@@ -510,7 +516,8 @@ function renderDetail(){
   if(all.length>LM){
     moreBtn=expanded?'<button class="more" id="dmore">收起 ▴</button>':'<button class="more" id="dmore">展开全部 '+all.length+' 条 ▾</button>';
   }
-  detailEl.innerHTML='<div class="detail-hd" style="--ca:'+esc(ca)+'"><span class="dcdot" style="background:'+esc(ca)+'"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+all.length+' 条结果</div></div><div class="dtags">'+tagsHtml+'</div><span class="dcount">'+all.length+'</span></div><div class="detail-body"><ul class="rlist">'+itemsHtml+'</ul>'+moreBtn+'</div>';
+  var cBadge3=(p.cached?'<div class="dcache">⚡ 缓存命中</div>':'');
+  detailEl.innerHTML='<div class="detail-hd" style="--ca:'+esc(ca)+'"><span class="dcdot" style="background:'+esc(ca)+'"></span><div class="dinfo"><div class="dname">'+esc(p.name)+'</div><div class="dsub">'+all.length+' 条结果</div>'+cBadge3+'</div><div class="dtags">'+tagsHtml+'</div><span class="dcount">'+all.length+'</span></div><div class="detail-body"><ul class="rlist">'+itemsHtml+'</ul>'+moreBtn+'</div>';
   // 绑定复制按钮
   detailEl.querySelectorAll('.cpbtn').forEach(function(b){
     b.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();cp(b.getAttribute('data-url'),b)});
@@ -550,7 +557,11 @@ sf.addEventListener('submit',function(e){
     if(signal.aborted)return Promise.resolve();
     return fetch('/__batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:kw,type:m,platforms:batch}),signal:signal})
       .then(function(r){if(!r.ok)throw new Error('批处理失败('+r.status+')');return r.json()})
-      .then(function(data){(data.results||[]).forEach(function(res){emitResult(res,signal,doneRef,total)})})
+      .then(function(data){
+        // 本批命中 KV 缓存时，给每条结果打 cached 标记（前端据此显示「⚡ 缓存命中」）
+        var hit=!!data.cached;
+        (data.results||[]).forEach(function(res){if(hit)res.cached=true;emitResult(res,signal,doneRef,total)})
+      })
       .catch(function(err){
         if(signal.aborted)return;
         // 整批请求失败：把该批每个平台标记为错误，保证进度条能走完
@@ -575,7 +586,7 @@ function pm(d){
       var r=d.result;
       // 保留之前的 expanded 状态
       var prev=platforms.get(r.name);
-      platforms.set(r.name,{name:r.name,color:r.color,tags:r.tags,items:r.items,error:r.error,expanded:prev?prev.expanded:false});
+      platforms.set(r.name,{name:r.name,color:r.color,tags:r.tags,items:r.items,error:r.error,cached:!!r.cached,expanded:prev?prev.expanded:false});
       rc++;
       if(r.error)ec++;
       renderPlist();
