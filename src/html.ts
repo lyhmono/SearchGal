@@ -1,6 +1,16 @@
 // SearchGAL 前端 HTML - 主从布局版
 // 左侧平台列表 + 右侧详情面板，保留动态背景（极光/网格/二次元图片）
-// 包含：Resource Hints、移动端堆叠、键盘导航、SSE 流式、结果排序
+// 包含：Resource Hints、移动端堆叠、键盘导航、客户端 fan-out 分批、结果排序
+
+import { PLATFORMS_GAL, PLATFORMS_PATCH } from "./core";
+
+// 平台名称清单：注入到前端，供「客户端 fan-out」按批拆分平台。
+// 浏览器每批对 /__batch 发起一次【独立】Worker 调用，每次调用各有专属的 50 子请求预算，
+// 从而在不升级付费计划的前提下搜完 37+ 平台（服务端同区自调用在免费计划下被 Cloudflare 拦截）。
+const SG_PLATFORM_NAMES: Record<string, string[]> = {
+  gal: PLATFORMS_GAL.map((p) => p.name),
+  patch: PLATFORMS_PATCH.map((p) => p.name),
+};
 
 export const HTML = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -313,6 +323,11 @@ var sf=$('sf'),q=$('q'),sb=$('sb'),icl=$('icl'),hd=$('hd'),pf=$('pf'),pt=$('ptex
 var m='gal',buf='',busy=false,t0=0,rc=0,ec=0,lt=0,tp=0,CD=2000,LM=8,HK='sgh',MH=5,tt=null;
 var platforms=new Map(),selName=null,sortBy='count',total=0,done=0,noResult=false;
 
+// 平台清单（服务端注入）：客户端 fan-out 分批的权威来源
+var SG_PLATFORMS=${JSON.stringify(SG_PLATFORM_NAMES)};
+// 用真实平台数刷新 tab 角标
+document.querySelectorAll('.tab').forEach(function(t){var mm=t.dataset.m;var b=t.querySelector('.badge');if(b&&SG_PLATFORMS[mm])b.textContent=SG_PLATFORMS[mm].length});
+
 // HTML 转义，防 XSS（item name/url 来自外部爬虫数据）
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
@@ -510,18 +525,43 @@ function renderDetail(){
   }
 }
 
-// submit
+// submit —— 客户端 fan-out：浏览器把平台拆成多批，每批对 /__batch 发起一次
+// 【独立】Worker 调用（每次调用各有专属的 50 子请求预算），并行执行后合并结果。
+// 这绕开了 Cloudflare 免费计划「单次调用 50 子请求」硬上限，且无需服务端同区自调用。
 var abortCtrl=null;
+var BATCH_SIZE=8; // 单批平台数（与 resolveBatchSize 默认一致）
+function chunkArr(a,n){var o=[];for(var i=0;i<a.length;i+=n)o.push(a.slice(i,i+n));return o}
+function emitResult(res,signal,doneRef,tot){
+  if(signal.aborted)return;
+  doneRef.v++;
+  pm({progress:{completed:doneRef.v,total:tot},result:res});
+}
 sf.addEventListener('submit',function(e){
   e.preventDefault();var kw=q.value.trim();if(!kw||busy)return;var n=Date.now();if(n-lt<CD)return;lt=n;sbz(true);sh(kw);
   if(abortCtrl)abortCtrl.abort();
   abortCtrl=new AbortController();
-  fetch('/'+m,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'game='+encodeURIComponent(kw),signal:abortCtrl.signal}).then(function(r){
-    if(!r.ok)return r.json().then(function(err){throw new Error(err.error||'搜索失败('+r.status+')')});
-    var rd=r.body.getReader(),dc=new TextDecoder();buf='';
-    function pump(){return rd.read().then(function(v){if(v.value){buf+=dc.decode(v.value,{stream:true});var ls=buf.split('\\n');buf=ls.pop()||'';ls.forEach(function(l){if(!l.trim())return;try{pm(JSON.parse(l))}catch(e){}})}
-      if(v.done){if(buf.trim())try{pm(JSON.parse(buf))}catch(e){}finish();return}return pump()})}return pump()})
-  .catch(function(err){if(err.name==='AbortError')return;plistBody.innerHTML='<div class="plist-empty"><span class="pe-icon">⚠️</span>'+esc(err.message)+'</div>';pt.textContent='失败';sbz(false)})
+  var signal=abortCtrl.signal;
+  var names=SG_PLATFORMS[m]||[];
+  total=names.length;tp=total;
+  pm({total:total});
+  var batches=chunkArr(names,BATCH_SIZE);
+  var doneRef={v:0};
+  var promises=batches.map(function(batch){
+    if(signal.aborted)return Promise.resolve();
+    return fetch('/__batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:kw,type:m,platforms:batch}),signal:signal})
+      .then(function(r){if(!r.ok)throw new Error('批处理失败('+r.status+')');return r.json()})
+      .then(function(data){(data.results||[]).forEach(function(res){emitResult(res,signal,doneRef,total)})})
+      .catch(function(err){
+        if(signal.aborted)return;
+        // 整批请求失败：把该批每个平台标记为错误，保证进度条能走完
+        batch.forEach(function(name){emitResult({name:name,color:'#555',tags:[],items:[],error:'请求失败：'+(err.message||err)},signal,doneRef,total)})
+      })
+  });
+  Promise.allSettled(promises).then(function(){
+    if(signal.aborted)return;
+    pm({done:true});
+    finish();
+  })
 });
 
 function pm(d){

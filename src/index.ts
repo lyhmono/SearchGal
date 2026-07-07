@@ -1,5 +1,4 @@
 import {
-  handleSearchRequestStream,
   PLATFORMS_GAL,
   PLATFORMS_PATCH,
   getPlatformHealth,
@@ -36,7 +35,7 @@ const SSE_HEADERS = {
   ...CORS,
 };
 
-const RATE_WIN = 60_000, RATE_MAX = 30;
+const RATE_WIN = 60_000, RATE_MAX = 60;
 const limits = new Map<string, { n: number; at: number }>();
 let lastLimitSweep = 0;
 
@@ -113,23 +112,11 @@ function sanitizeGame(game: string): string {
   }).join("");
 }
 
-// ── 旧路径：单次调用内并发搜索（SEARCHGAL_FANOUT=off 时回退用）──
-function streamLegacy(game: string, plats: Platform[], env: Env, ctx: ExecutionContext): Response {
-  const { readable, writable } = new TransformStream();
-  const w = writable.getWriter();
-  const enc = new TextEncoder();
-  ctx.waitUntil(
-    handleSearchRequestStream(game, plats, w, env, ctx)
-      .catch((e) => { console.error("Stream err:", e); w.write(enc.encode(JSON.stringify({ error: "搜索出错", done: true }) + "\n")).catch(() => {}); })
-      .finally(() => w.close().catch(() => {}))
-  );
-  return new Response(readable, { headers: SSE_HEADERS });
-}
-
-// ── 新路径：fan-out 分批（默认）──
-// 把平台拆成多批，每批通过自调用 /__batch 触发一次【独立】Worker 调用，
-// 每次独立调用各有专属的 50 子请求预算，从而在不升级付费计划前搜完 37+ 平台。
-// 对外仍是 SSE 流式：先发 total，每批返回即逐条推送 result，最后 done。
+// ── 服务端 fan-out（供外部 API / 服务端 SSE 使用）──
+// 依赖 Worker 自调用能力：通过 Service Binding（env.SELF）触发独立的 /__batch 调用，
+// 每次独立调用各有专属 50 子请求预算。免费计划下必须走这条路才能搜完 37+ 平台。
+// 注意：前端搜索默认走「客户端 fan-out」（见 html.ts），不会调用本路径；
+// 本路径仅在配置了 [[services]] SELF 绑定时对外部 POST /gal、/patch 生效。
 async function streamFanout(
   game: string, plats: Platform[], env: Env, ctx: ExecutionContext, selfUrl: URL, type: string
 ): Promise<Response> {
@@ -156,16 +143,18 @@ async function streamFanout(
       let done = 0;
       const total = plats.length;
 
-      // 每批 = 一次独立 Worker 调用（自有 50 子请求预算）。父调用本身仅消耗「批数」个子请求。
+      // 每批 = 一次独立 Worker 调用（经 Service Binding 触发，自有 50 子请求预算）。
+      // 父调用本身仅消耗「批数」个子请求，从而绕过免费计划 50 子请求硬上限。
       await Promise.all(batches.map(async (batch) => {
         const body = JSON.stringify({ game, type, platforms: batch.map((p) => p.name) });
-        const r = await fetch(new URL("/__batch", selfUrl), {
+        const r = await env.SELF!.fetch(new Request(selfUrl.origin + "/__batch", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-searchgal-internal": "1" },
           body,
-        });
-        const data = await r.json() as { results: StreamResult[] };
-        for (const res of data.results) {
+        }));
+        const data = (await r.json()) as { results?: StreamResult[] };
+        const results = Array.isArray(data.results) ? data.results : [];
+        for (const res of results) {
           done++;
           const ev = { progress: { completed: done, total }, result: res };
           collected.push(ev);
@@ -208,11 +197,17 @@ async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform
   game = sanitizeGame(game);
 
   const selfUrl = new URL(req.url);
-  // 默认走 fan-out；设 SEARCHGAL_FANOUT=off 可回退到单次调用旧逻辑
-  if ((env?.SEARCHGAL_FANOUT ?? "on") !== "off") {
-    return streamFanout(game, plats, env, ctx, selfUrl, type);
+  // 服务端 fan-out 依赖 Worker 自调用（Service Binding，即 env.SELF）。
+  // 免费计划下无法在单次调用内搜完 37+ 平台，必须分批触发独立调用。
+  // 若未配置 SELF 绑定：前端已改用「客户端 fan-out」，这里给出明确指引而非含糊的「搜索出错」。
+  if (!env.SELF) {
+    return err(
+      "当前部署未配置 Worker 自调用（Service Binding），无法在服务端一次性搜索 37+ 平台（会触发免费计划 50 子请求上限）。" +
+      "本站前端已自动改用「客户端分批」搜索，请直接通过网页使用；如需服务端 SSE 接口，请为 Worker 添加指向自身的 [[services]] 绑定（binding = SELF）。",
+      400
+    );
   }
-  return streamLegacy(game, plats, env, ctx);
+  return streamFanout(game, plats, env, ctx, selfUrl, type);
 }
 
 export default {
@@ -263,7 +258,19 @@ export default {
         .map((n) => all.find((pl) => pl.name === n))
         .filter((x): x is Platform => Boolean(x));
 
-      const results = await runPlatformsCollect(game, subset, env);
+      // 每批结果按「game + 本批平台集合」缓存：命中则直接返回，省子请求、加速重复搜索
+      let results: StreamResult[] | null = null;
+      if (env?.SEARCHGAL_KV && subset.length > 0) {
+        const cached = await getCache(env, cacheKey(game, subset));
+        if (cached && Array.isArray(cached)) results = cached as StreamResult[];
+      }
+      if (!results) {
+        results = await runPlatformsCollect(game, subset, env);
+        if (env?.SEARCHGAL_KV && subset.length > 0) {
+          await setCache(env, cacheKey(game, subset), results, CACHE_TTL_RESULT_SECONDS);
+        }
+      }
+
       return new Response(JSON.stringify({ total: subset.length, results }), {
         headers: { "Content-Type": "application/json", ...CORS },
       });

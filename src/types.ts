@@ -41,5 +41,8 @@ export interface Env {
   SEARCHGAL_KV?: KVNamespace;
   SEARCHGAL_RATELIMIT?: RateLimit;
   BG_API_URL?: string;
+  // Worker 自调用（Service Binding）：指向自身，用于服务端 fan-out 分批触发独立调用。
+  // 仅在 wrangler.toml 配置了 [[services]] binding = "SELF" 时存在。
+  SELF?: Fetcher;
   [k: string]: unknown;
 }

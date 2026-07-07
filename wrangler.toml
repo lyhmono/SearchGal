@@ -18,22 +18,30 @@ ENVIRONMENT = "production"
 # SEARCHGAL_CONCURRENCY: 单搜索并发平台数，默认 6。免费计划触发 CPU 时间超限时调低（如 3）。
 # SEARCHGAL_TIMEOUT_MS: 单平台请求超时(毫秒)，默认 12000。免费计划可调低（如 8000）以缩短单次搜索耗时。
 # BG_API_URL: 背景图代理上游地址（避免广告拦截器）。默认 https://api.yppp.net/api.php，换源只改这一行。
-# SEARCHGAL_SUBREQUEST_BUDGET: 单次调用子请求预算（默认 40）。注意：启用 fan-out 后单批子请求数由
-#   SEARCHGAL_BATCH_SIZE × 单平台子请求决定，不再受本预算「跳过」逻辑限制；本值仅作用于非 fan-out 回退路径。
-# SEARCHGAL_FANOUT: 是否启用 fan-out 分批（默认 on）。免费计划靠「每批一次独立 Worker 调用」突破 50 子请求上限；
-#   设 "off" 回退到单次调用旧逻辑（会重现 Too many subrequests 报错）。
-# SEARCHGAL_BATCH_SIZE: 每批平台数（默认 8，上限 20）。单批子请求数 ≈ 批大小 × 单平台子请求，须 < 50。
+# SEARCHGAL_SUBREQUEST_BUDGET: 单批调用子请求预算（默认 40）。每批 = 一次独立 Worker 调用，
+#   单批子请求数 ≈ SEARCHGAL_BATCH_SIZE × 单平台子请求，须 < 50（免费计划硬上限）。
+# SEARCHGAL_BATCH_SIZE: 每批平台数（默认 8，上限 20）。仅影响「服务端 fan-out」（见下方 [[services]] SELF），
+#   前端客户端 fan-out 固定每批 8 个。
 # LOG_LEVEL = "warn"
 # SEARCHGAL_CONCURRENCY = 6
 # SEARCHGAL_TIMEOUT_MS = 12000
 # BG_API_URL = "https://api.yppp.net/api.php"
 # SEARCHGAL_SUBREQUEST_BUDGET = 40
-# SEARCHGAL_FANOUT = "on"
 # SEARCHGAL_BATCH_SIZE = 8
 
 # 单次调用子请求上限（Cloudflare Workers 平台限制）。
-# 免费计划硬上限为 50，无法调高；本仓库通过上方 SEARCHGAL_SUBREQUEST_BUDGET 做优雅降级。
-# 若已升级 Workers Paid（默认上限 10,000），可取消下方注释提高上限以获得完整 37 平台覆盖：
+# 免费计划硬上限为 50，无法调高。本仓库通过「分批」绕开：每个平台批次触发一次【独立】Worker 调用，
+# 每次调用各有专属的 50 子请求预算。前端默认在「浏览器侧」分批（对 /__batch 并行请求），
+# 无需任何额外配置即可在免费计划下搜完 37+ 平台。
+
+# 可选：服务端 SSE 接口（POST /gal、/patch）也支持 fan-out，但需 Worker 自调用能力。
+# 免费计划下默认走前端客户端 fan-out；若想让服务端 SSE 接口（外部 API）也生效，
+# 取消下方注释，为 Worker 添加指向自身的 Service Binding（binding = "SELF"）后重新部署：
+# [[services]]
+# binding = "SELF"
+# service = "searchgal"
+
+# 若已升级 Workers Paid（默认上限 10,000），可取消下方注释提高单次调用子请求上限：
 # [limits]
 # subrequests = 1000
 
