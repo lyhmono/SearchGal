@@ -43,8 +43,15 @@ function limitedMemory(ip: string) {
 // 统一限流入口：优先用 CF Rate Limiting binding（分布式），否则 fallback 到内存
 async function limited(ip: string, env: Env): Promise<boolean> {
   if (env.SEARCHGAL_RATELIMIT) {
-    const { success } = await env.SEARCHGAL_RATELIMIT.limit({ key: ip || "unknown" });
-    return !success;
+    try {
+      const { success } = await env.SEARCHGAL_RATELIMIT.limit({ key: ip || "unknown" });
+      return !success;
+    } catch (e) {
+      // 限流绑定异常（如 wrangler.toml 里 namespace_id 配置错误/占位）时，
+      // 降级为内存限流，避免一次性把整个搜索接口拖垮成 500。
+      console.error("RATELIMIT 绑定调用失败，降级为内存限流:", e);
+      return limitedMemory(ip);
+    }
   }
   return limitedMemory(ip);
 }
