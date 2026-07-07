@@ -1,5 +1,6 @@
 import { fetchClient } from "../../utils/httpClient";
 import type { Platform, PlatformSearchResult, SearchResultItem } from "../../types";
+import { decodeHtml } from "./htmlSearch";
 
 const API_URL = "https://www.ttloli.com/";
 const REGEX = /<p style="text-align: center;"> <a href=".*?" target="_blank">.*?<p style="text-align: center;"> <a href="(?<URL>.*?)" title="(?<NAME>.*?)"> <img src=/gs;
@@ -56,7 +57,7 @@ async function searchYouYuDeloli(game: string): Promise<PlatformSearchResult> {
           continue;
         }
         items.push({
-          name: match.groups.NAME.trim(),
+          name: decodeHtml(match.groups.NAME.trim()),
           url: match.groups.URL,
         });
       }

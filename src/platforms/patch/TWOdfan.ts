@@ -1,5 +1,6 @@
 import { fetchClient } from "../../utils/httpClient";
 import type { Platform, PlatformSearchResult, SearchResultItem } from "../../types";
+import { decodeHtml } from "../gal/htmlSearch";
 
 const API_URL = "https://2dfan.com/subjects/search";
 const BASE_URL = "https://2dfan.com";
@@ -28,7 +29,7 @@ async function searchTWOdfan(game: string): Promise<PlatformSearchResult> {
     for (const match of matches) {
       if (match.groups?.NAME && match.groups?.URL) {
         items.push({
-          name: match.groups.NAME.trim(),
+          name: decodeHtml(match.groups.NAME.trim()),
           url: BASE_URL + match.groups.URL,
         });
       }

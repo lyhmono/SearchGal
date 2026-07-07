@@ -1,5 +1,6 @@
 import { fetchClient } from "../../utils/httpClient";
 import type { Platform, PlatformSearchResult, SearchResultItem } from "../../types";
+import { decodeHtml } from "./htmlSearch";
 
 const API_URL = "https://koyso.to/";
 const BASE_URL = "https://koyso.to";
@@ -28,7 +29,7 @@ async function searchKoyso(game: string): Promise<PlatformSearchResult> {
     for (const match of matches) {
       if (match.groups?.NAME && match.groups?.URL) {
         items.push({
-          name: match.groups.NAME.trim(),
+          name: decodeHtml(match.groups.NAME.trim()),
           url: BASE_URL + match.groups.URL,
         });
       }

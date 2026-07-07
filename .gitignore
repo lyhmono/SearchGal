@@ -9,8 +9,6 @@ package-lock.json
 # dist/
 # build/
 
-*.md
-
 # Environment variables
 .env
 .env.*

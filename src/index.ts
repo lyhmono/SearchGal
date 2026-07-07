@@ -149,7 +149,7 @@ async function streamFanout(
         const body = JSON.stringify({ game, type, platforms: batch.map((p) => p.name) });
         const r = await env.SELF!.fetch(new Request(selfUrl.origin + "/__batch", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-searchgal-internal": "1" },
+          headers: { "Content-Type": "application/json" },
           body,
         }));
         const data = (await r.json()) as { results?: StreamResult[] };
@@ -232,14 +232,11 @@ export default {
     // CORS 预检
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
-    // 内部批处理端点：父调用带 x-searchgal-internal 头免二次限流；外部直接调用则走限流兜底。
-    // 每次调用都是独立 Worker 调用，拥有自己专属的 50 子请求预算（fan-out 的核心）。
+    // 内部批处理端点（/__batch）：每次调用都是独立 Worker 调用，拥有自己专属的 50 子请求预算（fan-out 的核心）。
+    // 所有调用（含服务端 SELF 自调用）统一走限流，避免被伪造请求头绕过。单次搜索约 5 个批次，远低于 60/min 上限。
     if (req.method === "POST" && p === "/__batch") {
-      const internal = req.headers.get("x-searchgal-internal") === "1";
-      if (!internal) {
-        const ip = req.headers.get("CF-Connecting-IP") || req.headers.get("X-Forwarded-For") || "";
-        if (await limited(ip, env)) return err("请求过于频繁", 429);
-      }
+      const ip = req.headers.get("CF-Connecting-IP") || req.headers.get("X-Forwarded-For") || "";
+      if (await limited(ip, env)) return err("请求过于频繁", 429);
 
       let payload: { game?: unknown; type?: unknown; platforms?: unknown };
       const ct = req.headers.get("Content-Type") || "";

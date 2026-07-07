@@ -2,7 +2,7 @@ import type { Env, Platform, StreamResult } from "./types";
 
 import platformsGal from "./platforms/gal";
 import platformsPatch from "./platforms/patch";
-import { setDefaultTimeout, DEFAULT_TIMEOUT_MS, resetSubrequestCounter, getSubrequestCount } from "./utils/httpClient";
+import { setDefaultTimeout, DEFAULT_TIMEOUT_MS } from "./utils/httpClient";
 
 const DEFAULT_CONCURRENCY = 6;     // Cloudflare 优化：默认 6 个并发；可经 SEARCHGAL_CONCURRENCY 环境变量覆盖
 const BREAKER_THRESHOLD = 3;
@@ -31,13 +31,6 @@ function resolveConcurrency(env?: Env): number {
 function resolveTimeout(env?: Env): number {
   const raw = Number(env?.SEARCHGAL_TIMEOUT_MS);
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_TIMEOUT_MS;
-}
-// 单次调用子请求预算（默认 40，为免费计划 50 硬上限留出余量，避免触发硬报错）。
-// 付费计划可经 SEARCHGAL_SUBREQUEST_BUDGET 调高（并配合 wrangler.toml 的 limits.subrequests）。
-const DEFAULT_SUBREQUEST_BUDGET = 40;
-function resolveSubrequestBudget(env?: Env): number {
-  const raw = Number(env?.SEARCHGAL_SUBREQUEST_BUDGET);
-  return Number.isFinite(raw) && raw > 0 ? Math.min(Math.floor(raw), 10_000) : DEFAULT_SUBREQUEST_BUDGET;
 }
 function log(level: LogLevel, message: string) {
   if (LOG_RANK[level] >= LOG_RANK[LOG_LEVEL]) {
@@ -73,17 +66,7 @@ export function getPlatformHealth(): Record<string, unknown> {
   return r;
 }
 
-// ── 并发控制 ──
-async function eachLimit<T, R>(items: T[], fn: (item: T, i: number) => Promise<R>, limit: number): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let idx = 0;
-  const worker = async () => { while (idx < items.length) { const i = idx++; out[i] = await fn(items[i], i); } };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
-  return out;
-}
-
 // ── 核心搜索流 ──
-function fmt(data: object) { return JSON.stringify(data) + "\n"; }
 
 // ponytail: 平台集合是编译期常量，哈希代价极低，不需要 WeakMap 记忆化
 function hashPlatformSet(platforms: Platform[]): string {
@@ -122,99 +105,9 @@ export async function setCache(env: Env, key: string, data: object[], ttlSeconds
   }
 }
 
-export async function handleSearchRequestStream(
-  game: string, platforms: Platform[], writer: WritableStreamDefaultWriter<Uint8Array>,
-  env?: Env, ctx?: ExecutionContext
-): Promise<void> {
-  LOG_LEVEL = resolveLogLevel(env);
-  resetSubrequestCounter();
-  setDefaultTimeout(resolveTimeout(env));
-  const concurrency = resolveConcurrency(env);
-  const subrequestBudget = resolveSubrequestBudget(env);
-  log("info", `搜索: ${game}`);
-  const enc = new TextEncoder();
-  let done = 0;
-
-  // 检查 KV 缓存
-  if (env?.SEARCHGAL_KV) {
-    const key = cacheKey(game, platforms);
-    const cached = await getCache(env, key);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      log("info", `缓存命中: ${game}`);
-      // 重放缓存的 SSE 事件（直接序列化，不使用 fmt）
-      for (const event of cached) {
-        await writer.write(enc.encode(JSON.stringify(event) + "\n"));
-      }
-      return; // 直接返回，无需实际搜索
-    }
-  }
-
-  // 写锁
-  let lock: Promise<void> = Promise.resolve();
-  const collectedEvents: object[] = [];
-  let hasResultItems = false;
-  const wr = (d: object) => { collectedEvents.push(d); lock = lock.then(() => writer.write(enc.encode(fmt(d))).catch(() => {})); return lock; };
-
-  // 标记熔断
-  const items = platforms.map(p => ({ p, skip: isOpen(p.name) }));
-  const total = items.length;
-  await wr({ total });
-
-  // 发送跳过
-  for (const it of items) {
-    if (!it.skip) continue;
-    done++;
-    const b = breakers.get(it.p.name);
-    await wr({ progress: { completed: done, total }, result: { name: it.p.name, color: "#555", tags: [...it.p.tags, "breaker"], items: [], error: "已熔断 · " + (b?.lastError || "未知") } });
-  }
-
-  const active = items.filter(it => !it.skip);
-
-  await eachLimit(active, async (it) => {
-    const p = it.p; const t0 = Date.now();
-    // 子请求预算保护：接近上限时优雅跳过剩余平台，避免 Cloudflare 硬报错使整次搜索失败
-    if (getSubrequestCount() >= subrequestBudget) {
-      done++;
-      await wr({ progress: { completed: done, total }, result: { name: p.name, color: "#555", tags: [...p.tags, "skipped"], items: [], error: "已达单次调用子请求上限，已跳过（升级 Workers Paid 可解除）" } });
-      return;
-    }
-    try {
-      const res = await p.search(game);
-      const ms = Date.now() - t0; done++;
-      if (res.error) { fail(p.name, res.error); log("error", `${p.name} 错误(${ms}ms): ${res.error}`); await wr({ progress: { completed: done, total }, result: { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error } }); }
-      else {
-        ok(p.name);
-        if (res.count > 0) { hasResultItems = true; log("info", `${p.name} ${res.count}条(${ms}ms)`); }
-        // 即使 0 结果也下发 result 事件（items 为空数组），前端据此在左侧列表显示该平台（灰色「空结果」态），
-        // 让用户能区分「搜了没结果」与「没搜」。hasResultItems 仍只在有条目时置真，空结果不缓存逻辑不受影响。
-        await wr({ progress: { completed: done, total }, result: { name: p.name, color: p.color, tags: p.tags, items: res.items } });
-      }
-    } catch (e) { done++; const ms = Date.now() - t0; const msg = e instanceof Error ? e.message : String(e); fail(p.name, msg); log("error", `${p.name} 异常(${ms}ms): ${msg}`); await wr({ progress: { completed: done, total } }); }
-  }, concurrency);
-
-  await wr({ done: true });
-  
-  // 写入 KV 缓存（用 ctx.waitUntil 异步写入，不阻塞响应返回）
-  // 只要拿到结果条目（hasResultItems）就缓存，即使个别平台超时/报错也照常缓存，
-  // 解决原来「任一平台失败则整次不缓存」导致的命中率过低问题。
-  if (env?.SEARCHGAL_KV && collectedEvents.length > 0 && hasResultItems) {
-    const key = cacheKey(game, platforms);
-    // 仅缓存有意义的最终事件（total / result / done），丢弃纯进度的 progress 事件，减小 KV 体积
-    const toCache = collectedEvents.filter((e) => "total" in e || "result" in e || "done" in e);
-    const cachePromise = setCache(env, key, toCache, CACHE_TTL_RESULT_SECONDS);
-    if (ctx) {
-      ctx.waitUntil(cachePromise);
-    } else {
-      await cachePromise;
-    }
-    log("info", `已缓存: ${game} (${CACHE_TTL_RESULT_SECONDS}s)`);
-  } else if (collectedEvents.length > 0 && !hasResultItems) {
-    log("warn", `跳过缓存: ${game} (无结果条目)`);
-  }
-}
-
 // ── 批处理收集式搜索（供 fan-out 子调用 /__batch 使用）──
-// 与 handleSearchRequestStream 不同：不做 SSE 流式，直接返回结果数组。
+// 直接返回结果数组（不做 SSE 流式），每个调用拥有专属 50 子请求预算，
+// 从而把 37+ 平台拆成多批触发多次调用，在免费计划下突破「单次调用 50 子请求」硬上限。
 // 关键点：每个 /__batch 调用都是一次【独立】Worker 调用，拥有自己专属的 50 子请求预算，
 // 因此把 37+ 平台拆成多批触发多次调用，就能在免费计划下突破「单次调用 50 子请求」硬上限。
 export async function runPlatformsCollect(
