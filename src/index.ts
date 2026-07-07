@@ -1,5 +1,16 @@
-import { handleSearchRequestStream, PLATFORMS_GAL, PLATFORMS_PATCH, getPlatformHealth } from "./core";
-import type { Env, Platform } from "./types";
+import {
+  handleSearchRequestStream,
+  PLATFORMS_GAL,
+  PLATFORMS_PATCH,
+  getPlatformHealth,
+  runPlatformsCollect,
+  getCache,
+  setCache,
+  cacheKey,
+  CACHE_TTL_RESULT_SECONDS,
+  resolveBatchSize,
+} from "./core";
+import type { Env, Platform, StreamResult } from "./types";
 import { HTML } from "./html";
 
 // 用 HTML 内容哈希生成缓存键：改了 html.ts 后哈希自动变化，Cache API 旧键自然失效，
@@ -16,6 +27,13 @@ const CORS = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "86400",
+};
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache,no-transform",
+  "Connection": "keep-alive",
+  "X-Content-Type-Options": "nosniff",
+  ...CORS,
 };
 
 const RATE_WIN = 60_000, RATE_MAX = 30;
@@ -80,23 +98,23 @@ async function parseGame(req: Request): Promise<string> {
   return params.get("game") || "";
 }
 
-// ═════════════════════════════════════════════
-//  Server
-// ═════════════════════════════════════════════
+// 按批切分数组
+function chunk<T>(arr: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+}
 
-async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform[], env: Env): Promise<Response> {
-  let game: string;
-  try {
-    game = await parseGame(req);
-  } catch { return err("无法解析请求体", 400); }
-  game = game.trim();
-  if (!game) return err("请输入游戏名称", 400);
-  if (game.length > 100) return err("关键词过长", 400);
-  game = Array.from(game).filter((char) => {
+// 过滤控制字符（与旧逻辑一致）
+function sanitizeGame(game: string): string {
+  return Array.from(game).filter((char) => {
     const code = char.charCodeAt(0);
     return code > 0x1f && code !== 0x7f;
   }).join("");
+}
 
+// ── 旧路径：单次调用内并发搜索（SEARCHGAL_FANOUT=off 时回退用）──
+function streamLegacy(game: string, plats: Platform[], env: Env, ctx: ExecutionContext): Response {
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();
   const enc = new TextEncoder();
@@ -105,9 +123,96 @@ async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform
       .catch((e) => { console.error("Stream err:", e); w.write(enc.encode(JSON.stringify({ error: "搜索出错", done: true }) + "\n")).catch(() => {}); })
       .finally(() => w.close().catch(() => {}))
   );
-  return new Response(readable, {
-    headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache,no-transform", "Connection": "keep-alive", "X-Content-Type-Options": "nosniff", ...CORS },
-  });
+  return new Response(readable, { headers: SSE_HEADERS });
+}
+
+// ── 新路径：fan-out 分批（默认）──
+// 把平台拆成多批，每批通过自调用 /__batch 触发一次【独立】Worker 调用，
+// 每次独立调用各有专属的 50 子请求预算，从而在不升级付费计划前搜完 37+ 平台。
+// 对外仍是 SSE 流式：先发 total，每批返回即逐条推送 result，最后 done。
+async function streamFanout(
+  game: string, plats: Platform[], env: Env, ctx: ExecutionContext, selfUrl: URL, type: string
+): Promise<Response> {
+  const { readable, writable } = new TransformStream();
+  const w = writable.getWriter();
+  const enc = new TextEncoder();
+
+  ctx.waitUntil((async () => {
+    try {
+      // KV 缓存命中则直接重放，无需真正搜索
+      if (env?.SEARCHGAL_KV) {
+        const key = cacheKey(game, plats);
+        const cached = await getCache(env, key);
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+          for (const ev of cached) await w.write(enc.encode(JSON.stringify(ev) + "\n"));
+          return;
+        }
+      }
+
+      await w.write(enc.encode(JSON.stringify({ total: plats.length }) + "\n"));
+
+      const batches = chunk(plats, resolveBatchSize(env));
+      const collected: object[] = [];
+      let done = 0;
+      const total = plats.length;
+
+      // 每批 = 一次独立 Worker 调用（自有 50 子请求预算）。父调用本身仅消耗「批数」个子请求。
+      await Promise.all(batches.map(async (batch) => {
+        const body = JSON.stringify({ game, type, platforms: batch.map((p) => p.name) });
+        const r = await fetch(new URL("/__batch", selfUrl), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-searchgal-internal": "1" },
+          body,
+        });
+        const data = await r.json() as { results: StreamResult[] };
+        for (const res of data.results) {
+          done++;
+          const ev = { progress: { completed: done, total }, result: res };
+          collected.push(ev);
+          await w.write(enc.encode(JSON.stringify(ev) + "\n"));
+        }
+      }));
+
+      const doneEv = { done: true };
+      collected.push(doneEv);
+      await w.write(enc.encode(JSON.stringify(doneEv) + "\n"));
+
+      // 写入 KV 缓存（异步，不阻塞响应）
+      if (env?.SEARCHGAL_KV && collected.some((e) => {
+        const r = (e as { result?: StreamResult }).result;
+        return r !== undefined && Array.isArray(r.items) && r.items.length > 0;
+      })) {
+        const toCache = collected.filter((e) => "total" in e || "result" in e || "done" in e);
+        const cp = setCache(env, cacheKey(game, plats), toCache, CACHE_TTL_RESULT_SECONDS);
+        if (ctx) ctx.waitUntil(cp); else await cp;
+      }
+    } catch (e) {
+      console.error("fanout err:", e);
+      await w.write(enc.encode(JSON.stringify({ error: "搜索出错", done: true }) + "\n")).catch(() => {});
+    } finally {
+      w.close().catch(() => {});
+    }
+  })());
+
+  return new Response(readable, { headers: SSE_HEADERS });
+}
+
+async function handleSearch(req: Request, ctx: ExecutionContext, plats: Platform[], env: Env, type: string): Promise<Response> {
+  let game: string;
+  try {
+    game = await parseGame(req);
+  } catch { return err("无法解析请求体", 400); }
+  game = game.trim();
+  if (!game) return err("请输入游戏名称", 400);
+  if (game.length > 100) return err("关键词过长", 400);
+  game = sanitizeGame(game);
+
+  const selfUrl = new URL(req.url);
+  // 默认走 fan-out；设 SEARCHGAL_FANOUT=off 可回退到单次调用旧逻辑
+  if ((env?.SEARCHGAL_FANOUT ?? "on") !== "off") {
+    return streamFanout(game, plats, env, ctx, selfUrl, type);
+  }
+  return streamLegacy(game, plats, env, ctx);
 }
 
 export default {
@@ -132,12 +237,44 @@ export default {
     // CORS 预检
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
+    // 内部批处理端点：父调用带 x-searchgal-internal 头免二次限流；外部直接调用则走限流兜底。
+    // 每次调用都是独立 Worker 调用，拥有自己专属的 50 子请求预算（fan-out 的核心）。
+    if (req.method === "POST" && p === "/__batch") {
+      const internal = req.headers.get("x-searchgal-internal") === "1";
+      if (!internal) {
+        const ip = req.headers.get("CF-Connecting-IP") || req.headers.get("X-Forwarded-For") || "";
+        if (await limited(ip, env)) return err("请求过于频繁", 429);
+      }
+
+      let payload: { game?: unknown; type?: unknown; platforms?: unknown };
+      const ct = req.headers.get("Content-Type") || "";
+      if (ct.includes("application/json")) {
+        payload = JSON.parse(await req.text());
+      } else {
+        const f = await req.formData();
+        payload = { game: f.get("game"), type: f.get("type"), platforms: JSON.parse(String(f.get("platforms") || "[]")) };
+      }
+
+      const game = String(payload.game ?? "").trim();
+      const type = String(payload.type ?? "gal");
+      const names = Array.isArray(payload.platforms) ? payload.platforms.map(String) : [];
+      const all = type === "patch" ? PLATFORMS_PATCH : PLATFORMS_GAL;
+      const subset = names
+        .map((n) => all.find((pl) => pl.name === n))
+        .filter((x): x is Platform => Boolean(x));
+
+      const results = await runPlatformsCollect(game, subset, env);
+      return new Response(JSON.stringify({ total: subset.length, results }), {
+        headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+
     // 搜索接口
     if (req.method === "POST") {
       const ip = req.headers.get("CF-Connecting-IP") || req.headers.get("X-Forwarded-For") || "";
       if (await limited(ip, env)) return err("请求过于频繁", 429);
-      if (p === "/gal") return handleSearch(req, ctx, PLATFORMS_GAL, env);
-      if (p === "/patch") return handleSearch(req, ctx, PLATFORMS_PATCH, env);
+      if (p === "/gal") return handleSearch(req, ctx, PLATFORMS_GAL, env, "gal");
+      if (p === "/patch") return handleSearch(req, ctx, PLATFORMS_PATCH, env, "patch");
     }
 
     // 背景图片代理（避免广告拦截器）+ Cache API 按小时缓存

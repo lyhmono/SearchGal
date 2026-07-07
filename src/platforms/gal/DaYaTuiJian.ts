@@ -2,7 +2,6 @@ import { fetchClient } from "../../utils/httpClient";
 import type { Platform, PlatformSearchResult, SearchResultItem } from "../../types";
 
 const API_URL = "https://dayalt.top/wp-json/wp/v2/posts";
-const BASE_URL = "https://dayalt.top";
 
 interface DaYaTuiJianPost {
   id: number;
