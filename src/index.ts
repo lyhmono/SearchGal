@@ -240,11 +240,15 @@ export default {
 
       let payload: { game?: unknown; type?: unknown; platforms?: unknown };
       const ct = req.headers.get("Content-Type") || "";
-      if (ct.includes("application/json")) {
-        payload = JSON.parse(await req.text());
-      } else {
-        const f = await req.formData();
-        payload = { game: f.get("game"), type: f.get("type"), platforms: JSON.parse(String(f.get("platforms") || "[]")) };
+      try {
+        if (ct.includes("application/json")) {
+          payload = JSON.parse(await req.text());
+        } else {
+          const f = await req.formData();
+          payload = { game: f.get("game"), type: f.get("type"), platforms: JSON.parse(String(f.get("platforms") || "[]")) };
+        }
+      } catch {
+        return err("无效的请求参数", 400);
       }
 
       const game = String(payload.game ?? "").trim();
