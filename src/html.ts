@@ -69,7 +69,7 @@ body{
 /* === 动态背景层（保留） === */
 .bg-aurora{position:fixed;inset:0;z-index:0;pointer-events:none;background:linear-gradient(120deg,rgba(255,134,183,.18),transparent 34%),linear-gradient(250deg,rgba(139,215,255,.13),transparent 42%),linear-gradient(180deg,rgba(9,9,21,.1),rgba(9,9,21,.9));mix-blend-mode:screen}
 .bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.07;background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(135deg,rgba(255,134,183,.08) 1px,transparent 1px);background-size:56px 56px,56px 56px,140px 140px}
-.bg-acg{position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;opacity:.28;z-index:-1;pointer-events:none;transition:opacity .5s;filter:saturate(1.18) contrast(1.08) brightness(.72)}
+.bg-acg{position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;opacity:.5;z-index:-1;pointer-events:none;transition:opacity .5s;filter:saturate(1.22) contrast(1.05) brightness(.98)}
 
 .app{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:clamp(1rem,3vw,2.25rem) clamp(.8rem,2.5vw,2rem) 4rem}
 
