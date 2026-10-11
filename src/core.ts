@@ -3,6 +3,7 @@ import type { Env, Platform, StreamResult } from "./types";
 import platformsGal from "./platforms/gal";
 import platformsPatch from "./platforms/patch";
 import { setDefaultTimeout, DEFAULT_TIMEOUT_MS } from "./utils/httpClient";
+import { resolveSearchEnv } from "./utils/env";
 
 const DEFAULT_CONCURRENCY = 6;     // Cloudflare 优化：默认 6 个并发；可经 SEARCHGAL_CONCURRENCY 环境变量覆盖
 const BREAKER_THRESHOLD = 3;
@@ -116,6 +117,7 @@ export async function runPlatformsCollect(
   LOG_LEVEL = resolveLogLevel(env);
   setDefaultTimeout(resolveTimeout(env));
   const concurrency = resolveConcurrency(env);
+  const searchEnv = resolveSearchEnv(env);
   const out: StreamResult[] = new Array(platforms.length);
   let idx = 0;
   const worker = async () => {
@@ -129,7 +131,7 @@ export async function runPlatformsCollect(
       }
       const t0 = Date.now();
       try {
-        const res = await p.search(game);
+        const res = await p.search(game, searchEnv);
         const ms = Date.now() - t0;
         if (res.error) { fail(p.name, res.error); log("error", `${p.name} 错误(${ms}ms): ${res.error}`); out[i] = { name: p.name, color: "red", tags: p.tags, items: res.items, error: res.error }; }
         else { ok(p.name); if (res.count > 0) log("info", `${p.name} ${res.count}条(${ms}ms)`); out[i] = { name: p.name, color: p.color, tags: p.tags, items: res.items }; }
