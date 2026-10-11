@@ -33,7 +33,15 @@ export async function fetchClient(
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  // 调用方取消时透传取消原因，避免被误报成「请求超时」
+  const onAbort = () => controller.abort(options.signal?.reason);
+  if (options.signal?.aborted) onAbort();
+  else options.signal?.addEventListener("abort", onAbort, { once: true });
 
   const finalOptions: FetchOptions = {
     ...options,
@@ -58,11 +66,16 @@ export async function fetchClient(
     const response = await fetch(url, finalOptions);
     return response;
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`资源平台 SearchAPI 请求超时`, { cause: error });
+    if (timedOut) throw new Error("资源平台 SearchAPI 请求超时", { cause: error });
+    // 把 Cloudflare 的网络错误码（ERR_TLS_CERT_ALTNAME_INVALID / ENOTFOUND / ECONNREFUSED 等）
+    // 提到消息里，停用平台时能直接写清原因，不用再猜。
+    const code = (error as { cause?: { code?: string } })?.cause?.code;
+    if (error instanceof Error && !options.signal?.aborted) {
+      if (code) throw new Error(`资源平台 SearchAPI 网络错误 ${code}`, { cause: error });
     }
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    options.signal?.removeEventListener("abort", onAbort);
   }
 }
