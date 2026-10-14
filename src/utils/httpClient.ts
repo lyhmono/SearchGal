@@ -18,10 +18,14 @@ type FetchOptions = RequestInit & {
     cacheTtlByStatus?: Record<string, number>;
   };
   timeoutMs?: number;
+  // 兼容上游绅士天堂等适配器：Node/Docker 运行时下跳过 TLS 证书校验；
+  // Cloudflare Workers 无 process.env，此选项为无操作空转。
+  insecure?: boolean;
 };
 
 /**
  * 一个封装了原生 fetch 并增加了超时功能的 HTTP 客户端。
+ * 超时限制覆盖连接、响应头及响应体读取全过程（15s 上游默认，本项目默认 12s 且可运行时覆盖）。
  * GET 请求启用 CF 边缘缓存（cacheEverything），热门关键词重复搜索时直接命中边缘节点。
  * @param url 请求的 URL。
  * @param options fetch 的请求选项。
@@ -42,6 +46,13 @@ export async function fetchClient(
   const onAbort = () => controller.abort(options.signal?.reason);
   if (options.signal?.aborted) onAbort();
   else options.signal?.addEventListener("abort", onAbort, { once: true });
+
+  // insecure 仅在 Node/Docker 运行时有效（Workers 无 process，自然跳过）
+  let prevUnauthorized: string | undefined;
+  if (options.insecure && typeof process !== "undefined" && process.env) {
+    prevUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  }
 
   const finalOptions: FetchOptions = {
     ...options,
@@ -64,7 +75,16 @@ export async function fetchClient(
 
   try {
     const response = await fetch(url, finalOptions);
-    return response;
+    const body = response.body ? await response.arrayBuffer() : null;
+    const buffered = new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+    // Response 构造器不接受 URL；保留重定向后的地址以正确生成站点链接。
+    Object.defineProperty(buffered, "url", { value: response.url });
+    Object.defineProperty(buffered, "redirected", { value: response.redirected });
+    return buffered;
   } catch (error) {
     if (timedOut) throw new Error("资源平台 SearchAPI 请求超时", { cause: error });
     // 把 Cloudflare 的网络错误码（ERR_TLS_CERT_ALTNAME_INVALID / ENOTFOUND / ECONNREFUSED 等）
@@ -77,5 +97,12 @@ export async function fetchClient(
   } finally {
     clearTimeout(timeoutId);
     options.signal?.removeEventListener("abort", onAbort);
+    if (options.insecure && typeof process !== "undefined" && process.env) {
+      if (prevUnauthorized !== undefined) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevUnauthorized;
+      } else {
+        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      }
+    }
   }
 }

@@ -12,6 +12,8 @@ package-lock.json
 # Environment variables
 .env
 .env.*
+.dev.vars
+.dev.vars.*
 
 # Deployment directories
 .vercel
@@ -22,9 +24,20 @@ package-lock.json
 .claude
 
 .history
+
 # preview files
 preview.html
 build-preview.mjs
 
 # wrangler deploy --dry-run 输出（本地验证产物，非源码）
 tmp/
+
+# Tests and test build
+test/
+tests/
+*.test.*
+.test-build/
+testbuild/
+scripts/run-tests.*
+scripts/compile-test-*
+scripts/audit-*

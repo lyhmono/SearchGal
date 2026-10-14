@@ -2,7 +2,7 @@
 
 # 🔍 SearchGal · Gal资源聚合搜索工具
 
-🚀 **极速响应** | 🌊 **SSE 流式传输** | 🎮 **37+ 平台聚合** | ☁️ **边缘部署**
+🚀 **极速响应** | 🌊 **SSE 流式传输** | 🎮 **34+ 平台聚合** | ☁️ **边缘部署**
 
 [在线预览](https://gal.hhoo.cc.cd) • [快速部署](#-快速部署) • [API 文档](#-api-文档) • [开发者接入](#-开发者接入指南)
 
@@ -25,7 +25,7 @@
 | 特性 | 说明 |
 |:----:|------|
 | ✅ **多端适配** | PC/移动端完美适配，PC端支持展示游戏封面、介绍、标签 |
-| 💡 **多源聚合** | 实时聚合 **37+** Gal资源平台 + **2+** 补丁站 |
+| 💡 **多源聚合** | 实时聚合 **34+** Gal资源平台 + **1+** 补丁站 |
 | 🏷️ **智能标注** | 自动标注：🟢免登录 / 🟡需魔法 / ⚪特殊条件 |
 | ☁️ **部署平台** | Cloudflare Workers |
 | 🌊 **流式响应** | SSE 实时返回搜索结果，无需等待全部完成 |
@@ -40,38 +40,35 @@
 
 [![VNS](https://img.shields.io/badge/VNS-00C853)](https://gal.saop.cc/)
 [![真红小站](https://img.shields.io/badge/真红小站-00C853)](https://shinnku.com)
-[![KisuGal](https://img.shields.io/badge/KisuGal-00C853)](https://www.kisuacg.moe/)
 [![Galgamex](https://img.shields.io/badge/Galgamex-00C853)](https://www.galgamex.net/)
 [![忧郁的loli](https://img.shields.io/badge/忧郁的loli-00C853)](https://www.ttloli.com/)
 [![GAL图书馆](https://img.shields.io/badge/GAL图书馆-00C853)](https://gallibrary.pw/)
-[![绮梦ACG](https://img.shields.io/badge/绮梦ACG-00C853)](https://game.acgs.one/)
 [![鲲Galgame](https://img.shields.io/badge/鲲Galgame-00C853)](https://www.kungal.com/zh-cn/)
 [![未知云盘](https://img.shields.io/badge/未知云盘-00C853)](https://www.nullcloud.top/)
 [![梓澪の妙妙屋](https://img.shields.io/badge/梓澪の妙妙屋-00C853)](https://zi0.cc/)
 [![猫猫网盘](https://img.shields.io/badge/猫猫网盘-00C853)](https://catcat.cloud/)
 [![稻荷GAL](https://img.shields.io/badge/稻荷GAL-00C853)](https://inarigal.com/)
-[![Koyso](https://img.shields.io/badge/Koyso-00C853)](https://koyso.to/)
-[![萤ノ光](https://img.shields.io/badge/萤ノ光-00C853)](https://www.yinghu.asia/)
+[![Koyso](https://img.shields.io/badge/Koyso-00C853)](https://playzip.com/)
 [![月谣](https://img.shields.io/badge/月谣-00C853)](https://www.sayafx.vip/)
-[![05的资源小站](https://img.shields.io/badge/05的资源小站-00C853)](https://05fx.022016.xyz/)
-[![紫缘Gal](https://img.shields.io/badge/紫缘Gal-00C853)](https://galzy.eu.org)
+[![05的资源小站](https://img.shields.io/badge/05的资源小站-00C853)](https://www.022016.xyz/)
+[![紫缘Gal](https://img.shields.io/badge/紫缘Gal-00C853)](https://www.galzy.moe/)
+[![SakuGAL](https://img.shields.io/badge/SakuGAL-00C853)](https://sakugal.com/)
+[![TouchGal](https://img.shields.io/badge/TouchGal-00C853)](https://www.touchgal.ink/)
 
 #### 🟢 补丁站
 
 [![鲲Galgame补丁](https://img.shields.io/badge/鲲Galgame补丁-00C853)](https://www.moyu.moe/)
-[![2dfan](https://img.shields.io/badge/2dfan-00C853)](https://2dfan.com)
 
 ### ⚪ 需登录/特殊条件
 
-[![量子ACG](https://img.shields.io/badge/量子ACG-AAAAAA)](https://lzacg.org/)
+[![量子ACG](https://img.shields.io/badge/量子ACG-AAAAAA)](https://lzacg.cc/)
 [![FuFuGal](https://img.shields.io/badge/FuFuGal-AAAAAA)](https://www.fufugal.com/)
-[![ACG嘤嘤怪](https://img.shields.io/badge/ACG嘤嘤怪-AAAAAA)](https://acgyyg.ru/)
+[![ACG嘤嘤怪](https://img.shields.io/badge/ACG嘤嘤怪-AAAAAA)](https://acgyyg.cc/)
 [![喵源领域](https://img.shields.io/badge/喵源领域-AAAAAA)](https://www.nyantaku.com/)
 [![玖黎ACG](https://img.shields.io/badge/玖黎ACG-AAAAAA)](https://jiuliacg.com/)
 
 ### 🟡 需魔法访问
 
-[![VikaACG](https://img.shields.io/badge/VikaACG-FFC107)](https://www.vikacg.com/)
 [![绅仕天堂](https://img.shields.io/badge/绅仕天堂-FFC107)](https://www.gogalgame.com/)
 [![天游二次元](https://img.shields.io/badge/天游二次元-FFC107)](https://www.tiangal.com/)
 [![Nysoure](https://img.shields.io/badge/Nysoure-FFC107)](https://res.nyne.dev/)
@@ -104,7 +101,7 @@ pnpm wrangler dev   # 启动开发服务器
 
 ## ☁️ Cloudflare 免费计划架构（重要）
 
-本站的核心挑战：**Cloudflare 免费计划单次 Worker 调用硬限 50 个子请求**。37+ 资源站累加远超上限，曾导致一半左右平台报 `Too many subrequests`。
+本站的核心挑战：**Cloudflare 免费计划单次 Worker 调用硬限 50 个子请求**。34+ 资源站累加远超上限，曾导致一半左右平台报 `Too many subrequests`。
 
 ### 解决方案：客户端分批 fan-out
 
@@ -115,6 +112,21 @@ pnpm wrangler dev   # 启动开发服务器
 ### KV 缓存
 
 每个 `/__batch` 的响应按 `游戏名 + 本批平台集合` 写入 KV（`SEARCHGAL_KV`），TTL 默认 30 分钟。重复搜索会直接命中缓存、秒回，并省下子请求额度。命中缓存的批次，前端对应平台会显示 **⚡ 缓存命中** 标记（左侧闪电图标 + 右侧详情胶囊）。
+
+---
+
+### 🔑 环境变量
+
+| 变量 | 必需 | 说明 |
+|------|:----:|------|
+| `TOUCHGAL_API_TOKEN` | 可选 | TouchGal 官方元数据 API token（`tgal_live_...`）。TouchGal 主站已整站开启 Cloudflare 质询，无法直接抓取，需在 [developer.touchgal.com](https://developer.touchgal.com) 申请、审核通过后创建 token。**未配置时 TouchGal 平台会自动跳过（不报错），配置后即可恢复搜索。** |
+
+在 Cloudflare Workers 中作为 secret 注入（本地开发放入 `.dev.vars` 文件，不要提交）：
+
+```bash
+pnpm wrangler secret put TOUCHGAL_API_TOKEN
+echo 'TOUCHGAL_API_TOKEN=tgal_live_xxx' >> .dev.vars
+```
 
 ### 本地开发
 
@@ -291,6 +303,7 @@ const YourSite: Platform = {
   name: "站点名称",
   color: "lime",
   tags: ["NoReq"],
+  magic: false,
   search: async (game) => {
     // 实现搜索逻辑
     return { count: 0, items: [] };
@@ -344,6 +357,6 @@ SearchGal/
 
 **欢迎各位 GalGame 爱好者优化本项目 ❤️**
 
-[MIT License](./LICENSE) © SearchGal
+[GNU AGPLv3 License](./LICENSE) © SearchGal
 
 </div>
