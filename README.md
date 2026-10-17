@@ -2,7 +2,7 @@
 
 # 🔍 SearchGal · Gal资源聚合搜索工具
 
-🚀 **极速响应** | 🌊 **SSE 流式传输** | 🎮 **34+ 平台聚合** | ☁️ **边缘部署**
+🚀 **极速响应** | 🌊 **SSE 流式传输** | 🎮 **29+ 平台聚合** | ☁️ **边缘部署**
 
 [在线预览](https://gal.hhoo.cc.cd) • [快速部署](#-快速部署) • [API 文档](#-api-文档) • [开发者接入](#-开发者接入指南)
 
@@ -25,7 +25,7 @@
 | 特性 | 说明 |
 |:----:|------|
 | ✅ **多端适配** | PC/移动端完美适配，PC端支持展示游戏封面、介绍、标签 |
-| 💡 **多源聚合** | 实时聚合 **34+** Gal资源平台 + **1+** 补丁站 |
+| 💡 **多源聚合** | 实时聚合 **29+** Gal资源平台 + **1+** 补丁站 |
 | 🏷️ **智能标注** | 自动标注：🟢免登录 / 🟡需魔法 / ⚪特殊条件 |
 | ☁️ **部署平台** | Cloudflare Workers |
 | 🌊 **流式响应** | SSE 实时返回搜索结果，无需等待全部完成 |
@@ -62,7 +62,6 @@
 ### ⚪ 需登录/特殊条件
 
 [![量子ACG](https://img.shields.io/badge/量子ACG-AAAAAA)](https://lzacg.cc/)
-[![FuFuGal](https://img.shields.io/badge/FuFuGal-AAAAAA)](https://www.fufugal.com/)
 [![ACG嘤嘤怪](https://img.shields.io/badge/ACG嘤嘤怪-AAAAAA)](https://acgyyg.cc/)
 [![喵源领域](https://img.shields.io/badge/喵源领域-AAAAAA)](https://www.nyantaku.com/)
 [![玖黎ACG](https://img.shields.io/badge/玖黎ACG-AAAAAA)](https://jiuliacg.com/)
@@ -101,7 +100,7 @@ pnpm wrangler dev   # 启动开发服务器
 
 ## ☁️ Cloudflare 免费计划架构（重要）
 
-本站的核心挑战：**Cloudflare 免费计划单次 Worker 调用硬限 50 个子请求**。34+ 资源站累加远超上限，曾导致一半左右平台报 `Too many subrequests`。
+本站的核心挑战：**Cloudflare 免费计划单次 Worker 调用硬限 50 个子请求**。29+ 资源站累加远超上限，曾导致一半左右平台报 `Too many subrequests`。
 
 ### 解决方案：客户端分批 fan-out
 

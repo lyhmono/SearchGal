@@ -1,7 +1,10 @@
 import { fetchClient } from "../../utils/httpClient";
 import type { Platform, PlatformSearchResult, SearchResultItem } from "../../types";
 
-const API_URL = "https://gamebus001.com/api/product/search";
+// 2026-10 复核：站点由 gamebus001.com 整体迁移至 gamebus001.cc（旧域名 301 至新域名），
+// 且搜索接口新增必填 page 参数——必须是数字字符串（传数字会 400 Validation failed）。
+const API_URL = "https://gamebus001.cc/api/product/search";
+const BASE_URL = "https://gamebus001.cc";
 
 interface GameBusItem {
   id: number;
@@ -10,10 +13,10 @@ interface GameBusItem {
 
 interface GameBusResponse {
   code: number;
-  message: string;
-  data: {
-    list: GameBusItem[];
-    total: number;
+  message?: string;
+  data?: {
+    list?: GameBusItem[];
+    total?: number;
   };
 }
 
@@ -31,6 +34,7 @@ async function searchGameBus(game: string): Promise<PlatformSearchResult> {
       },
       body: JSON.stringify({
         keyword: game,
+        page: "1", // 注意：必须是字符串，数字会触发 400 Validation failed
       }),
     });
 
@@ -46,7 +50,7 @@ async function searchGameBus(game: string): Promise<PlatformSearchResult> {
 
     const items: SearchResultItem[] = (data.data?.list ?? []).map((item) => ({
       name: item.title.trim(),
-      url: `https://gamebus001.com/product/${item.id}`,
+      url: `${BASE_URL}/product/${item.id}`,
     }));
 
     searchResult.items = items;

@@ -30,6 +30,17 @@ const DISABLED = {
     ShenShiTianTang: '证书链缺少中间证书（unable to verify the first certificate），Workers 无法跳过 TLS 校验，故停用',
     // 原因为证书过期，实测站长已续证；现在拦路的是 JS 质询，理由更新
     YouYuDeloli: '首页返回 window.location 跳转的 JS 质询（__check 参数），服务端无法直接抓取，故停用',
+    // 2026-10-18 复核：站点已整体改版为 Vue SPA，原 /so?query= JSON 接口下线；
+    // 包分析显示新接口 /glosearch、/ai/so 的封装在前端中无任何调用方（死代码），无可用搜索 API
+    FuFuACG: '站点改版为 Vue SPA 后搜索功能下线（原 JSON 接口移除），无法服务端聚合，故停用',
+    // 2026-10-18 复核：/api/fs/search 返回「Checking your browser」JS 质询页（ge_ua_p cookie 计算），服务端无法通过
+    ZiLingDeMiaoMiaoWu: '站点开启 JS 浏览器质询，服务端无法通过，故停用',
+    // 2026-10-18 复核：搜索页只返回 Vue 空壳 HTML（<div id="app">），无服务端渲染内容，正则必然匹配空
+    HuangXingYouXiKu: '站点改版为 Vue SPA（服务端仅返回空壳 HTML），无法解析，故停用',
+    // 2026-10-18 复核：?s= 搜索返回 404 页
+    Loioy: '站点搜索接口失效（返回 404），故停用',
+    // 2026-10-18 复核：站点连接超时/失联
+    MikiGame: '站点失联（连接超时），故停用',
   },
   patch: {
     TWOdfan: '全站 Cloudflare 人机防护拦截，返回 403，服务端无法直接抓取，故停用',
